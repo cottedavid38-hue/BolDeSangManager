@@ -157,7 +157,11 @@ public class LeagueService(
                     CoutDepuisTypeEquipe = s.CoutDepuisTypeEquipe,
                     MinCreation          = s.MinCreation,
                     MaxCreation          = s.MaxCreation,
-                    MaxLigue             = s.MaxLigue
+                    MaxLigue             = s.MaxLigue,
+                    // Idem CopierVersLigueAsync : le drapeau VEA fait partie de
+                    // la copie. Omis, il repart à true et remet les fans dans la
+                    // VEA de la ligue nouvellement créée.
+                    CompteDansVea        = s.CompteDansVea
                 });
             }
             await db.SaveChangesAsync();

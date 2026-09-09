@@ -375,6 +375,59 @@ public class StaffServiceTests : IDisposable
         Assert.True(Assert.Single(regles.Where(s => s.Nom == "Cheerleaders")).EstActif);
     }
 
+    /// <summary>
+    /// Le drapeau « compte dans la VEA » doit survivre au chemin de création
+    /// AVEC staff personnalisé, celui qu'emprunte l'écran de création de ligue.
+    ///
+    /// Bug rencontré : la copie champ par champ omettait <c>CompteDansVea</c>,
+    /// qui repartait donc au défaut C# (<c>true</c>). Les Fans dévoués, exclus
+    /// de la VEA dans les règles, RÉINTÉGRAIENT la VEA de toute ligue créée
+    /// depuis l'écran — deux ligues, deux calculs, sans rien à l'écran pour
+    /// l'expliquer. La contre-épreuve (« Cheerleaders » resté à true) prouve
+    /// qu'on ne se contente pas de tout forcer à false.
+    /// </summary>
+    [Fact]
+    public async Task CreerLigue_AvecStaffPersonnalise_ConserveLeDrapeauVea()
+    {
+        await using var db = _factory.CreateContext();
+        var (game, rv) = await DataSeeder.SeedGameAsync(db);
+        var commissaire = DataSeeder.CreateUser("com_vea");
+        db.Users.Add(commissaire);
+        await db.SaveChangesAsync();
+
+        var svcStaff = CreateService(db);
+        var fansDef = Def(rv.Id, "Fans dévoués", 5_000, min: 1, max: 3);
+        fansDef.CompteDansVea = false;                       // règle LRB : hors VEA
+        await svcStaff.AjouterStaffTypeAsync(fansDef);
+        await svcStaff.AjouterStaffTypeAsync(Def(rv.Id, "Cheerleaders", 10_000, min: 0, max: 6));
+
+        // Copie de travail identique à celle de Ligues/Creer.razor.
+        var perso = (await svcStaff.GetStaffTypesAsync(rv.Id))
+            .Select(s => new LeagueStaffType
+            {
+                StaffTypeId = s.Id, Nom = s.Nom, Description = s.Description,
+                Ordre = s.Ordre, EstActif = s.EstActif, Cout = s.Cout,
+                CoutDepuisTypeEquipe = s.CoutDepuisTypeEquipe,
+                MinCreation = s.MinCreation, MaxCreation = s.MaxCreation,
+                MaxLigue = s.MaxLigue, CompteDansVea = s.CompteDansVea
+            })
+            .ToList();
+
+        var ligueSvc = new LeagueService(
+            db, NullLogger<LeagueService>.Instance,
+            new StubAuthorizationService(), svcStaff);
+
+        var ligue = await ligueSvc.CreerLigueAsync(new League
+        {
+            Nom = "Ligue VEA", GameId = game.Id, RulesVersionId = rv.Id,
+            BudgetDepart = 1_000_000
+        }, commissaire.Id, perso);
+
+        var staffLigue = await svcStaff.GetStaffLigueAsync(ligue.Id);
+        Assert.False(Assert.Single(staffLigue.Where(s => s.Nom == "Fans dévoués")).CompteDansVea);
+        Assert.True(Assert.Single(staffLigue.Where(s => s.Nom == "Cheerleaders")).CompteDansVea);
+    }
+
     private class StubAuthorizationService : BolDeSangManager.Services.IAuthorizationService
     {
         public Task<bool> PeutGererLigueAsync(string userId, int ligueId) => Task.FromResult(true);

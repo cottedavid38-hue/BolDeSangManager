@@ -585,7 +585,12 @@ else
             CoutDepuisTypeEquipe = s.CoutDepuisTypeEquipe,
             MinCreation          = s.MinCreation,
             MaxCreation          = s.MaxCreation,
-            MaxLigue             = s.MaxLigue
+            MaxLigue             = s.MaxLigue,
+            // Sans cette ligne le drapeau repart au défaut C# (true) et les Fans
+            // dévoués, hors VEA dans les règles, RÉINTÉGRAIENT la VEA de toute
+            // ligue créée depuis cet écran. Copie champ par champ = tout champ
+            // neuf doit être ajouté ici aussi.
+            CompteDansVea        = s.CompteDansVea
         }).ToList();
     }
 
