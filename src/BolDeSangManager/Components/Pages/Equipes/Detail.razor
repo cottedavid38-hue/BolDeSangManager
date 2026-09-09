@@ -207,7 +207,31 @@ else
                     </HeaderContent>
                     <RowTemplate Context="j">
                         <MudTd DataLabel="N°">@j.Numero</MudTd>
-                        <MudTd DataLabel="Nom"><b>@j.Nom</b></MudTd>
+                        <MudTd DataLabel="Nom">
+                            @if (_renommageJoueurId == j.Id)
+                            {
+                                @* Édition en place (#16) : le nom n'entre dans aucun calcul,
+                                   donc pas de passage par l'écran de composition — qui, lui,
+                                   recrée tout le roster et détruirait XP et compétences. *@
+                                <MudTextField T="string" Value="@_renommageValeur"
+                                              ValueChanged="@(v => _renommageValeur = v)"
+                                              Immediate="true" AutoFocus="true"
+                                              Variant="Variant.Text" Margin="Margin.Dense"
+                                              MaxLength="100" Style="min-width:150px"
+                                              OnKeyDown="@(e => OnToucheRenommage(e, j.Id))"
+                                              OnBlur="@(() => ValiderRenommage(j.Id))" />
+                            }
+                            else
+                            {
+                                <b>@j.Nom</b>
+                                @if (_estCoach)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                   Class="ml-1" title="Renommer ce joueur"
+                                                   OnClick="@(() => DemarrerRenommage(j))" />
+                                }
+                            }
+                        </MudTd>
                         <MudTd DataLabel="Poste">
                             <div>@j.PlayerPosition?.Nom</div>
                             @if (!string.IsNullOrEmpty(j.PlayerPosition?.MotsCles))
@@ -277,11 +301,32 @@ else
                         <RowTemplate Context="j">
                             <MudTd DataLabel="N°">@j.Numero</MudTd>
                             <MudTd DataLabel="Nom">
-                                <span style="text-decoration:line-through">@j.Nom</span>
-                                @if (j.EstMort)
+                                @if (_renommageJoueurId == j.Id)
                                 {
-                                    <MudIcon Icon="@Icons.Material.Filled.Dangerous" Color="Color.Error"
-                                             Size="Size.Small" Class="ml-1" title="Mort" />
+                                    @* Un joueur mort ou retraité reste renommable : c'est de
+                                       l'historique (corriger une faute de frappe), pas du jeu. *@
+                                    <MudTextField T="string" Value="@_renommageValeur"
+                                                  ValueChanged="@(v => _renommageValeur = v)"
+                                                  Immediate="true" AutoFocus="true"
+                                                  Variant="Variant.Text" Margin="Margin.Dense"
+                                                  MaxLength="100" Style="min-width:150px"
+                                                  OnKeyDown="@(e => OnToucheRenommage(e, j.Id))"
+                                                  OnBlur="@(() => ValiderRenommage(j.Id))" />
+                                }
+                                else
+                                {
+                                    <span style="text-decoration:line-through">@j.Nom</span>
+                                    @if (j.EstMort)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Dangerous" Color="Color.Error"
+                                                 Size="Size.Small" Class="ml-1" title="Mort" />
+                                    }
+                                    @if (_estCoach)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       Class="ml-1" title="Renommer ce joueur"
+                                                       OnClick="@(() => DemarrerRenommage(j))" />
+                                    }
                                 }
                             </MudTd>
                             <MudTd DataLabel="Poste">@j.PlayerPosition?.Nom</MudTd>
@@ -478,6 +523,62 @@ else
         && _equipe.CoachId == _userId
         && _equipe.League is not null
         && DisplayHelpers.InscriptionOuverte(_equipe.League.Statut, _equipe.League.Format);
+
+    // ── Renommer un joueur (#16) ─────────────────────────────────────────────
+    //
+    // Volontairement DÉCORRÉLÉ de _peutEditer : celui-ci ouvre l'écran de
+    // composition, qui supprime et recrée tout le roster — d'où son verrou en
+    // phase Inscription. Un nom n'entre dans aucun calcul, donc il se corrige à
+    // tout moment, y compris saison lancée et sur un joueur mort ou retraité.
+
+    /// <summary>Joueur en cours d'édition de nom ; null = aucun.</summary>
+    int? _renommageJoueurId;
+    string _renommageValeur = "";
+
+    void DemarrerRenommage(TeamPlayer joueur)
+    {
+        _renommageJoueurId = joueur.Id;
+        _renommageValeur   = joueur.Nom;
+    }
+
+    /// <summary>Entrée valide, Échap annule — l'attendu sur un champ en place.</summary>
+    async Task OnToucheRenommage(KeyboardEventArgs e, int joueurId)
+    {
+        if (e.Key == "Enter")      await ValiderRenommage(joueurId);
+        else if (e.Key == "Escape") _renommageJoueurId = null;
+    }
+
+    /// <summary>
+    /// Enregistre le nouveau nom. Le service revalide le droit et la longueur :
+    /// l'écran propose, il ne fait pas autorité.
+    /// </summary>
+    async Task ValiderRenommage(int joueurId)
+    {
+        // OnBlur se déclenche aussi après une validation par Entrée : sans cette
+        // garde, le service serait appelé deux fois pour la même saisie.
+        if (_renommageJoueurId != joueurId) return;
+
+        var joueur = _equipe?.Joueurs.FirstOrDefault(p => p.Id == joueurId);
+        var saisi  = (_renommageValeur ?? "").Trim();
+        _renommageJoueurId = null;
+
+        if (joueur is null || saisi == joueur.Nom) return;   // rien à enregistrer
+
+        try
+        {
+            await TeamService.RenommerJoueurAsync(joueurId, _userId, saisi);
+
+            // Relire l'état réel, comme DefinirCapitaine : le service a pu
+            // substituer le numéro de maillot à un nom laissé vide, et c'est
+            // cette valeur-là qui doit s'afficher, pas la saisie.
+            _equipe = await TeamService.GetEquipeAsync(Id);
+            Snackbar.Add("Joueur renommé.", Severity.Success);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
 
     /// <summary>
     /// Choix du Dieu du Chaos par le commissaire. Le service revalide contre les

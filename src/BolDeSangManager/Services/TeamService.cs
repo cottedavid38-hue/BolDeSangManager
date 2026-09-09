@@ -475,6 +475,47 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
     }
 
     /// <summary>
+    /// Renomme un joueur, à tout moment — y compris saison lancée (#16).
+    ///
+    /// ⚠️ Commande DÉDIÉE, et volontairement étroite : le seul autre chemin qui
+    /// écrit le nom d'un joueur est <see cref="ModifierEquipeAsync"/>, qui
+    /// SUPPRIME puis recrée tout le roster. C'est précisément pour ça qu'il est
+    /// verrouillé en phase Inscription : l'ouvrir en cours de saison effacerait
+    /// XP, compétences acquises, blessures et améliorations. Élargir ce verrou
+    /// serait la correction évidente et la pire — passer par ici à la place.
+    ///
+    /// Un nom n'entre dans aucun calcul (ni VEA, ni budget, ni classement) :
+    /// aucune raison de regarder le statut de la ligue. Les joueurs morts ou
+    /// retraités restent renommables — c'est de l'historique, pas du jeu.
+    ///
+    /// Le coach ne renomme que SES joueurs ; l'écran propose, le service fait
+    /// autorité (décision produit : le commissaire n'est pas sur ce chemin).
+    /// </summary>
+    public async Task RenommerJoueurAsync(int joueurId, string coachId, string nouveauNom)
+    {
+        var joueur = await db.TeamPlayers
+            .Include(p => p.Team)
+            .FirstOrDefaultAsync(p => p.Id == joueurId)
+            ?? throw new InvalidOperationException("Joueur introuvable");
+
+        if (joueur.Team.CoachId != coachId)
+            throw new InvalidOperationException("Vous n'êtes pas le coach de cette équipe.");
+
+        // Mêmes règles qu'à la création : un nom vide retombe sur le numéro de
+        // maillot plutôt que de laisser une ligne anonyme, et la longueur est
+        // bornée — une valeur postée par le navigateur n'est jamais de confiance.
+        var propre = (nouveauNom ?? string.Empty).Trim();
+        if (propre.Length > 100)
+            throw new InvalidOperationException("Le nom d'un joueur ne peut pas dépasser 100 caractères.");
+
+        joueur.Nom = string.IsNullOrWhiteSpace(propre) ? $"#{joueur.Numero}" : propre;
+        await db.SaveChangesAsync();
+
+        logger.LogInformation("Joueur id={JoueurId} renommé en « {Nom} » (équipe id={TeamId})",
+            joueur.Id, joueur.Nom, joueur.TeamId);
+    }
+
+    /// <summary>
     /// Retire le titre à un capitaine mort ou retraité. Appelé après
     /// l'après-match : sans ça, la compétence resterait affichée sur un joueur
     /// absent de l'effectif.
