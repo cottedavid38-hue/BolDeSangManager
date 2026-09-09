@@ -163,7 +163,7 @@ public class LeagueExportService(
                         Type: i.Type,
                         StatAmelioree: i.StatAmelioree,
                         SkillNom: i.Skill?.Nom,
-                        XpDepensee: i.XpDepensee,
+                        PspDepensee: i.PspDepensee,
                         ValeurHausse: i.ValeurHausse)).ToList()
             )).ToList(),
             // Staff configurable : les colonnes historiques (relances, fans,
@@ -226,13 +226,13 @@ public class LeagueExportService(
             RulesVersionNom: ligue.RulesVersion?.Nom,
             Format: ligue.Format,
             BudgetDepart: ligue.BudgetDepart,
-            XpParTouchdown: ligue.XpParTouchdown,
-            XpParPasse: ligue.XpParPasse,
-            XpParInterception: ligue.XpParInterception,
-            XpParElimination: ligue.XpParElimination,
-            XpBonusMvp: ligue.XpBonusMvp,
-            XpParDeviation: ligue.XpParDeviation,
-            XpParAgression: ligue.XpParAgression,
+            PspParTouchdown: ligue.PspParTouchdown,
+            PspParPasse: ligue.PspParPasse,
+            PspParInterception: ligue.PspParInterception,
+            PspParElimination: ligue.PspParElimination,
+            PspBonusMvp: ligue.PspBonusMvp,
+            PspParDeviation: ligue.PspParDeviation,
+            PspParAgression: ligue.PspParAgression,
             PointsVictoire: ligue.PointsVictoire,
             PointsNul: ligue.PointsNul,
             PointsDefaite: ligue.PointsDefaite,
@@ -348,13 +348,13 @@ public class LeagueExportService(
             RulesVersionId = rulesVersion.Id,
             Format = dto.Format,
             BudgetDepart = dto.BudgetDepart,
-            XpParTouchdown    = dto.XpParTouchdown    ?? XpBareme.ParDefaut(game.Type).ParTouchdown,
-            XpParPasse        = dto.XpParPasse        ?? 1,
-            XpParInterception = dto.XpParInterception ?? 2,
-            XpParElimination  = dto.XpParElimination  ?? 2,
-            XpBonusMvp        = dto.XpBonusMvp        ?? 4,
-            XpParDeviation    = dto.XpParDeviation    ?? 0,
-            XpParAgression    = dto.XpParAgression    ?? 0,
+            PspParTouchdown    = dto.PspParTouchdown    ?? BaremePsp.ParDefaut(game.Type).ParTouchdown,
+            PspParPasse        = dto.PspParPasse        ?? 1,
+            PspParInterception = dto.PspParInterception ?? 2,
+            PspParElimination  = dto.PspParElimination  ?? 2,
+            PspBonusMvp        = dto.PspBonusMvp        ?? 4,
+            PspParDeviation    = dto.PspParDeviation    ?? 0,
+            PspParAgression    = dto.PspParAgression    ?? 0,
             // Barème de points de classement. Un export antérieur n'a pas ces
             // champs : on reprend le barème par défaut (3/1/0), jamais des zéros.
             PointsVictoire        = dto.PointsVictoire        ?? BaremePoints.ParDefaut().Victoire,
@@ -522,7 +522,7 @@ public class LeagueExportService(
                         Type = a.Type,
                         StatAmelioree = a.StatAmelioree,
                         SkillId = skillId,
-                        XpDepensee = a.XpDepensee,
+                        PspDepensee = a.PspDepensee,
                         ValeurHausse = a.ValeurHausse,
                         AppliqueLe = DateTime.UtcNow
                     });
@@ -633,13 +633,13 @@ record LeagueExportDto(
     List<MatchExportDto> Matchs,
     // Barème d'XP de la ligue (R6). Optionnels : un export antérieur reprend
     // les valeurs LRB par défaut à l'import.
-    int? XpParTouchdown = null,
-    int? XpParPasse = null,
-    int? XpParInterception = null,
-    int? XpParElimination = null,
-    int? XpBonusMvp = null,
-    int? XpParDeviation = null,
-    int? XpParAgression = null,
+    [property: JsonPropertyName("xpParTouchdown")] int? PspParTouchdown = null,
+    [property: JsonPropertyName("xpParPasse")] int? PspParPasse = null,
+    [property: JsonPropertyName("xpParInterception")] int? PspParInterception = null,
+    [property: JsonPropertyName("xpParElimination")] int? PspParElimination = null,
+    [property: JsonPropertyName("xpBonusMvp")] int? PspBonusMvp = null,
+    [property: JsonPropertyName("xpParDeviation")] int? PspParDeviation = null,
+    [property: JsonPropertyName("xpParAgression")] int? PspParAgression = null,
     // Barème de points de CLASSEMENT de la ligue et ses paliers. Optionnels :
     // un export antérieur reprend le barème par défaut, sans palier.
     int? PointsVictoire = null,
@@ -727,7 +727,7 @@ record AmeliorationExportDto(
     ImprovementType Type,
     AffectedStat? StatAmelioree,
     string? SkillNom,
-    int XpDepensee,
+    [property: JsonPropertyName("xpDepensee")] int PspDepensee,
     int ValeurHausse
 );
 

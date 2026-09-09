@@ -82,13 +82,13 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
         var vDest   = await db.RulesVersions.FirstOrDefaultAsync(v => v.Id == destVersionId);
         if (vSource is not null && vDest is not null)
         {
-            vDest.XpParTouchdown    = vSource.XpParTouchdown;
-            vDest.XpParPasse        = vSource.XpParPasse;
-            vDest.XpParInterception = vSource.XpParInterception;
-            vDest.XpParElimination  = vSource.XpParElimination;
-            vDest.XpBonusMvp        = vSource.XpBonusMvp;
-            vDest.XpParDeviation    = vSource.XpParDeviation;
-            vDest.XpParAgression    = vSource.XpParAgression;
+            vDest.PspParTouchdown    = vSource.PspParTouchdown;
+            vDest.PspParPasse        = vSource.PspParPasse;
+            vDest.PspParInterception = vSource.PspParInterception;
+            vDest.PspParElimination  = vSource.PspParElimination;
+            vDest.PspBonusMvp        = vSource.PspBonusMvp;
+            vDest.PspParDeviation    = vSource.PspParDeviation;
+            vDest.PspParAgression    = vSource.PspParAgression;
             // Barème de points de classement : mêmes règles, même clonage.
             BaremePoints.DeVersion(vSource).AppliquerA(vDest);
             // Barème des améliorations : les 8 hausses de valeur…
@@ -1304,7 +1304,7 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
     /// Modifie le barème d'XP de référence d'une version de règles (R6).
     /// Les ligues déjà créées conservent le barème qu'elles ont enregistré.
     /// </summary>
-    public async Task ModifierBaremeXpAsync(int versionId, XpBareme bareme)
+    public async Task ModifierBaremeXpAsync(int versionId, BaremePsp bareme)
     {
         var version = await db.RulesVersions.FirstOrDefaultAsync(v => v.Id == versionId)
             ?? throw new InvalidOperationException("Version de règles introuvable");

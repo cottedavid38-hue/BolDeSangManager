@@ -16,7 +16,7 @@
 <MudDialog>
     <DialogContent>
         <MudText Typo="Typo.subtitle1" Class="mb-1"><b>@Version.Nom</b></MudText>
-        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>Points d'expérience</b></MudText>
+        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>Points de star player</b></MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
             Valeurs de référence de cette version : une nouvelle ligue les reprend
             à sa création et peut ensuite les ajuster pour son propre format.
@@ -217,13 +217,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _td           = Version.XpParTouchdown;
-        _passe        = Version.XpParPasse;
-        _interception = Version.XpParInterception;
-        _elimination  = Version.XpParElimination;
-        _mvp          = Version.XpBonusMvp;
-        _xpDeviation  = Version.XpParDeviation;
-        _xpAgression  = Version.XpParAgression;
+        _td           = Version.PspParTouchdown;
+        _passe        = Version.PspParPasse;
+        _interception = Version.PspParInterception;
+        _elimination  = Version.PspParElimination;
+        _mvp          = Version.PspBonusMvp;
+        _xpDeviation  = Version.PspParDeviation;
+        _xpAgression  = Version.PspParAgression;
 
         // ⚠️ Une copie de travail construite champ par champ oublie tout champ
         // neuf, qui repart alors à son défaut C# et écrase la valeur en base à
@@ -273,7 +273,7 @@
         _enCours = true;
         try
         {
-            await DataEditService.ModifierBaremeXpAsync(Version.Id, new XpBareme
+            await DataEditService.ModifierBaremeXpAsync(Version.Id, new BaremePsp
             {
                 ParTouchdown    = _td,
                 ParPasse        = _passe,

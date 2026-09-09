@@ -40,8 +40,8 @@ public class BaremePointsPortableTests : IDisposable
         {
             var (game, version) = await DataSeeder.SeedGameAsync(db);
             BaremeReference().AppliquerA(version);
-            version.XpParDeviation = 7;
-            version.XpParAgression = 9;
+            version.PspParDeviation = 7;
+            version.PspParAgression = 9;
             await db.SaveChangesAsync();
             (sourceId, gameId) = (version.Id, game.Id);
         }
@@ -62,8 +62,8 @@ public class BaremePointsPortableTests : IDisposable
             Assert.Equal(1000, v.PointsDefaite);
             Assert.Equal(5, v.PointsParTouchdown);
             Assert.Equal(1, v.PointsParAgression);
-            Assert.Equal(7, v.XpParDeviation);
-            Assert.Equal(9, v.XpParAgression);
+            Assert.Equal(7, v.PspParDeviation);
+            Assert.Equal(9, v.PspParAgression);
         }
     }
 
@@ -368,8 +368,8 @@ public class BaremePointsPortableTests : IDisposable
         await using (var db = _factory.CreateContext())
         {
             var (_, version) = await DataSeeder.SeedGameAsync(db);
-            version.XpParTouchdown = 7;
-            version.XpBonusMvp = 11;
+            version.PspParTouchdown = 7;
+            version.PspBonusMvp = 11;
             await db.SaveChangesAsync();
             versionId = version.Id;
         }
@@ -382,8 +382,8 @@ public class BaremePointsPortableTests : IDisposable
         {
             var v = await db.RulesVersions.FindAsync(versionId);
             Assert.Equal(2000, v!.PointsVictoire);
-            Assert.Equal(7, v.XpParTouchdown);
-            Assert.Equal(11, v.XpBonusMvp);
+            Assert.Equal(7, v.PspParTouchdown);
+            Assert.Equal(11, v.PspBonusMvp);
         }
     }
 

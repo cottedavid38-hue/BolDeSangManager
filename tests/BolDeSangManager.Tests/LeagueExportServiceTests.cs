@@ -388,14 +388,14 @@ public class LeagueExportServiceTests : IDisposable
             {
                 TeamPlayerId = gromag.Id, Palier = 1,
                 Type = ImprovementType.SelectionPrimaire,
-                SkillId = skill.Id, XpDepensee = 6, ValeurHausse = 20_000
+                SkillId = skill.Id, PspDepensee = 6, ValeurHausse = 20_000
             },
             new PlayerImprovement
             {
                 TeamPlayerId = gromag.Id, Palier = 2,
                 Type = ImprovementType.AmeliorationCarac,
                 StatAmelioree = AffectedStat.Mouvement,
-                XpDepensee = 16, ValeurHausse = 20_000
+                PspDepensee = 16, ValeurHausse = 20_000
             });
         await setup.SaveChangesAsync();
         return (skill.Id, skill.Nom);
@@ -433,7 +433,7 @@ public class LeagueExportServiceTests : IDisposable
 
         var comp = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.SelectionPrimaire));
         Assert.Equal(1, comp.Palier);
-        Assert.Equal(6, comp.XpDepensee);
+        Assert.Equal(6, comp.PspDepensee);
         Assert.Null(comp.StatAmelioree);
 
         var carac = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.AmeliorationCarac));
@@ -539,7 +539,7 @@ public class LeagueExportServiceTests : IDisposable
         Assert.Equal(2, gromag.Improvements.Count);
         var comp = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.SelectionPrimaire));
         Assert.Null(comp.SkillId);
-        Assert.Equal(6, comp.XpDepensee);
+        Assert.Equal(6, comp.PspDepensee);
     }
 
     [Fact]

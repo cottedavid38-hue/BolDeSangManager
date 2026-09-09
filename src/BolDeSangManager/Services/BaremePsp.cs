@@ -13,7 +13,7 @@ namespace BolDeSangManager.Services;
 ///
 /// Les valeurs par défaut sont celles du LRB Saison 3 / Dungeon Bowl Edition 2022.
 /// </summary>
-public class XpBareme
+public class BaremePsp
 {
     /// <summary>XP par touchdown. 5 en Dungeon Bowl, 3 sinon.</summary>
     public int ParTouchdown { get; init; } = 3;
@@ -41,7 +41,7 @@ public class XpBareme
     public int ParAgression { get; init; } = 0;
 
     /// <summary>Barème par défaut pour un type de jeu donné.</summary>
-    public static XpBareme ParDefaut(GameType gameType) => new()
+    public static BaremePsp ParDefaut(GameType gameType) => new()
     {
         ParTouchdown = gameType == GameType.DungeonBowl ? 5 : 3
     };
@@ -50,60 +50,60 @@ public class XpBareme
     /// Barème défini par la version de règles (R6) — la référence dont héritent
     /// les nouvelles ligues. Repli sur les valeurs du jeu si la version est inconnue.
     /// </summary>
-    public static XpBareme DeVersion(RulesVersion? version, GameType gameType) =>
+    public static BaremePsp DeVersion(RulesVersion? version, GameType gameType) =>
         version is null
             ? ParDefaut(gameType)
-            : new XpBareme
+            : new BaremePsp
             {
-                ParTouchdown    = version.XpParTouchdown,
-                ParPasse        = version.XpParPasse,
-                ParInterception = version.XpParInterception,
-                ParElimination  = version.XpParElimination,
-                BonusMvp        = version.XpBonusMvp,
-                ParDeviation    = version.XpParDeviation,
-                ParAgression    = version.XpParAgression
+                ParTouchdown    = version.PspParTouchdown,
+                ParPasse        = version.PspParPasse,
+                ParInterception = version.PspParInterception,
+                ParElimination  = version.PspParElimination,
+                BonusMvp        = version.PspBonusMvp,
+                ParDeviation    = version.PspParDeviation,
+                ParAgression    = version.PspParAgression
             };
 
     /// <summary>Applique ce barème à une version de règles.</summary>
     public void AppliquerA(RulesVersion version)
     {
-        version.XpParTouchdown    = ParTouchdown;
-        version.XpParPasse        = ParPasse;
-        version.XpParInterception = ParInterception;
-        version.XpParElimination  = ParElimination;
-        version.XpBonusMvp        = BonusMvp;
-        version.XpParDeviation    = ParDeviation;
-        version.XpParAgression    = ParAgression;
+        version.PspParTouchdown    = ParTouchdown;
+        version.PspParPasse        = ParPasse;
+        version.PspParInterception = ParInterception;
+        version.PspParElimination  = ParElimination;
+        version.PspBonusMvp        = BonusMvp;
+        version.PspParDeviation    = ParDeviation;
+        version.PspParAgression    = ParAgression;
     }
 
     /// <summary>
     /// Barème configuré sur la ligue (R6). Si la ligue est inconnue, on retombe
     /// sur les valeurs par défaut du jeu.
     /// </summary>
-    public static XpBareme DeLigue(League? ligue, GameType gameType) =>
+    public static BaremePsp DeLigue(League? ligue, GameType gameType) =>
         ligue is null
             ? ParDefaut(gameType)
-            : new XpBareme
+            : new BaremePsp
             {
-                ParTouchdown    = ligue.XpParTouchdown,
-                ParPasse        = ligue.XpParPasse,
-                ParInterception = ligue.XpParInterception,
-                ParElimination  = ligue.XpParElimination,
-                BonusMvp        = ligue.XpBonusMvp,
-                ParDeviation    = ligue.XpParDeviation,
-                ParAgression    = ligue.XpParAgression
+                ParTouchdown    = ligue.PspParTouchdown,
+                ParPasse        = ligue.PspParPasse,
+                ParInterception = ligue.PspParInterception,
+                ParElimination  = ligue.PspParElimination,
+                BonusMvp        = ligue.PspBonusMvp,
+                ParDeviation    = ligue.PspParDeviation,
+                ParAgression    = ligue.PspParAgression
             };
 
     /// <summary>Applique ce barème aux champs d'une ligue (création / édition).</summary>
     public void AppliquerA(League ligue)
     {
-        ligue.XpParTouchdown    = ParTouchdown;
-        ligue.XpParPasse        = ParPasse;
-        ligue.XpParInterception = ParInterception;
-        ligue.XpParElimination  = ParElimination;
-        ligue.XpBonusMvp        = BonusMvp;
-        ligue.XpParDeviation    = ParDeviation;
-        ligue.XpParAgression    = ParAgression;
+        ligue.PspParTouchdown    = ParTouchdown;
+        ligue.PspParPasse        = ParPasse;
+        ligue.PspParInterception = ParInterception;
+        ligue.PspParElimination  = ParElimination;
+        ligue.PspBonusMvp        = BonusMvp;
+        ligue.PspParDeviation    = ParDeviation;
+        ligue.PspParAgression    = ParAgression;
     }
 
     /// <summary>

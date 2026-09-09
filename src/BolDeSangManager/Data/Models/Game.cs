@@ -41,26 +41,26 @@ public class RulesVersion
     // ajusté au seed).
 
     /// <summary>XP par touchdown.</summary>
-    public int XpParTouchdown { get; set; } = 3;
+    public int PspParTouchdown { get; set; } = 3;
 
     /// <summary>XP par passe complétée.</summary>
-    public int XpParPasse { get; set; } = 1;
+    public int PspParPasse { get; set; } = 1;
 
     /// <summary>XP par interception.</summary>
-    public int XpParInterception { get; set; } = 2;
+    public int PspParInterception { get; set; } = 2;
 
     /// <summary>XP par élimination infligée.</summary>
-    public int XpParElimination { get; set; } = 2;
+    public int PspParElimination { get; set; } = 2;
 
     /// <summary>XP bonus pour le joueur désigné MVP.</summary>
-    public int XpBonusMvp { get; set; } = 4;
+    public int PspBonusMvp { get; set; } = 4;
 
     /// <summary>XP par déviation (DEV). Zéro par défaut : l'action est comptée
     /// pour le classement, pas pour la progression du joueur.</summary>
-    public int XpParDeviation { get; set; } = 0;
+    public int PspParDeviation { get; set; } = 0;
 
     /// <summary>XP par agression (AGRO). Zéro par défaut, comme la déviation.</summary>
-    public int XpParAgression { get; set; } = 0;
+    public int PspParAgression { get; set; } = 0;
 
     // ── Barème de points de classement de référence ───────────────────────────
     // Ce que vaut un match au CLASSEMENT dans cette version de règles. Une ligue

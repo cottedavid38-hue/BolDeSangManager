@@ -40,7 +40,7 @@ public class CoutPspAmeliorationTests : IDisposable
         // Le barème propose 6 PSP pour une principale choisie au rang 1 ; le
         // coach en dépense volontairement 9.
         await svc.AppliquerAmeliorationAsync(
-            joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, xpDepensee: 9);
+            joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, pspDepensee: 9);
 
         await using var relecture = _factory.CreateContext();
         var relu = await relecture.TeamPlayers
@@ -48,7 +48,7 @@ public class CoutPspAmeliorationTests : IDisposable
             .FirstAsync(p => p.Id == joueur.Id);
 
         Assert.Equal(21, relu.PointsStarPlayer);                     // 30 − 9
-        Assert.Equal(9, Assert.Single(relu.Improvements).XpDepensee); // la valeur SAISIE
+        Assert.Equal(9, Assert.Single(relu.Improvements).PspDepensee); // la valeur SAISIE
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public class CoutPspAmeliorationTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             svc.AppliquerAmeliorationAsync(
-                joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, xpDepensee: 6));
+                joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, pspDepensee: 6));
     }
 
     /// <summary>
@@ -85,7 +85,7 @@ public class CoutPspAmeliorationTests : IDisposable
         // Rang 1 : le LRB propose 6 PSP pour une principale choisie.
         Assert.Equal(6, bareme.CoutPsp(ImprovementType.SelectionPrimaire, 1));
         await svc.AppliquerAmeliorationAsync(
-            joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, xpDepensee: 6);
+            joueur.Id, ImprovementType.SelectionPrimaire, skillId: skill.Id, pspDepensee: 6);
 
         await using var relecture = _factory.CreateContext();
         var relu = await relecture.TeamPlayers
@@ -189,7 +189,7 @@ public class CoutPspAmeliorationTests : IDisposable
         db.PlayerImprovements.Add(new PlayerImprovement
         {
             TeamPlayerId = joueur.Id, Palier = 1,
-            Type = ImprovementType.SelectionPrimaire, ValeurHausse = 20_000, XpDepensee = 6
+            Type = ImprovementType.SelectionPrimaire, ValeurHausse = 20_000, PspDepensee = 6
         });
 
         var match = new Match

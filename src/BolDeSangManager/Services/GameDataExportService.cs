@@ -127,13 +127,13 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
                 p.AccesCategories.Where(a => !a.EstPrincipale).Select(a => a.SkillCategoryDef.Nom).OrderBy(n => n).ToList()
             )).ToList(),
             Categories: categories.Select(c => new SkillCategoryGdDto(c.Nom, c.Code)).ToList(),
-            XpParTouchdown: version.XpParTouchdown,
-            XpParPasse: version.XpParPasse,
-            XpParInterception: version.XpParInterception,
-            XpParElimination: version.XpParElimination,
-            XpBonusMvp: version.XpBonusMvp,
-            XpParDeviation: version.XpParDeviation,
-            XpParAgression: version.XpParAgression,
+            PspParTouchdown: version.PspParTouchdown,
+            PspParPasse: version.PspParPasse,
+            PspParInterception: version.PspParInterception,
+            PspParElimination: version.PspParElimination,
+            PspBonusMvp: version.PspBonusMvp,
+            PspParDeviation: version.PspParDeviation,
+            PspParAgression: version.PspParAgression,
             PointsVictoire: version.PointsVictoire,
             PointsNul: version.PointsNul,
             PointsDefaite: version.PointsDefaite,
@@ -228,13 +228,13 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
                 DernierExportLe = dto.ExporteLe,
                 // Barème d'XP (R6) — un export antérieur n'a pas ces champs :
                 // on retombe alors sur les valeurs par défaut du jeu.
-                XpParTouchdown    = dto.XpParTouchdown    ?? XpBareme.ParDefaut(game.Type).ParTouchdown,
-                XpParPasse        = dto.XpParPasse        ?? 1,
-                XpParInterception = dto.XpParInterception ?? 2,
-                XpParElimination  = dto.XpParElimination  ?? 2,
-                XpBonusMvp        = dto.XpBonusMvp        ?? 4,
-                XpParDeviation    = dto.XpParDeviation    ?? 0,
-                XpParAgression    = dto.XpParAgression    ?? 0,
+                PspParTouchdown    = dto.PspParTouchdown    ?? BaremePsp.ParDefaut(game.Type).ParTouchdown,
+                PspParPasse        = dto.PspParPasse        ?? 1,
+                PspParInterception = dto.PspParInterception ?? 2,
+                PspParElimination  = dto.PspParElimination  ?? 2,
+                PspBonusMvp        = dto.PspBonusMvp        ?? 4,
+                PspParDeviation    = dto.PspParDeviation    ?? 0,
+                PspParAgression    = dto.PspParAgression    ?? 0,
                 // Barème de points de classement : un export antérieur n'a pas
                 // ces champs, on reprend alors le barème par défaut (3/1/0 sans
                 // bonus) — surtout PAS des zéros, qui vaudraient « aucun point
@@ -1137,13 +1137,15 @@ record GameDataExportDto(
     // pas, et doit rester importable tel quel.
     int? Revision = null,
     DateTime? ExporteLe = null,
-    int? XpParTouchdown = null,
-    int? XpParPasse = null,
-    int? XpParInterception = null,
-    int? XpParElimination = null,
-    int? XpBonusMvp = null,
-    int? XpParDeviation = null,
-    int? XpParAgression = null,
+    // ⚠️ Nom JSON figé à « xp… » : renommer le champ C# ne doit PAS casser
+    // la relecture des exports déjà produits par les associations.
+    [property: JsonPropertyName("xpParTouchdown")] int? PspParTouchdown = null,
+    [property: JsonPropertyName("xpParPasse")] int? PspParPasse = null,
+    [property: JsonPropertyName("xpParInterception")] int? PspParInterception = null,
+    [property: JsonPropertyName("xpParElimination")] int? PspParElimination = null,
+    [property: JsonPropertyName("xpBonusMvp")] int? PspBonusMvp = null,
+    [property: JsonPropertyName("xpParDeviation")] int? PspParDeviation = null,
+    [property: JsonPropertyName("xpParAgression")] int? PspParAgression = null,
     // Barème de points de CLASSEMENT de la version. Optionnels : un export
     // antérieur reprend le barème par défaut (3 / 1 / 0, aucun bonus).
     int? PointsVictoire = null,

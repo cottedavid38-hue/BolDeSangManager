@@ -603,9 +603,9 @@
                     </MudTd>
                     <MudTd DataLabel="Barèmes">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            XP : TD @context.XpParTouchdown · Passe @context.XpParPasse ·
-                            Int @context.XpParInterception · Élim @context.XpParElimination ·
-                            MVP @context.XpBonusMvp
+                            PSP : TD @context.PspParTouchdown · Passe @context.PspParPasse ·
+                            Int @context.PspParInterception · Élim @context.PspParElimination ·
+                            MVP @context.PspBonusMvp
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                             Pts : V @context.PointsVictoire · N @context.PointsNul · D @context.PointsDefaite
@@ -636,7 +636,7 @@
                                        title="Renommer cette version"
                                        OnClick="@(() => RenommerVersion(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.MilitaryTech" Size="Size.Small"
-                                       title="Modifier le barème d'XP de cette version"
+                                       title="Modifier le barème de PSP de cette version"
                                        OnClick="@(() => EditerBareme(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small"
                                        title="Exporter cette version"

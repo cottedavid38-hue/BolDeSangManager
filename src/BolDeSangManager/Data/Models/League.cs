@@ -40,25 +40,25 @@ public class League
     // Les matchs déjà saisis conservent leur XP : rien n'est recalculé.
 
     /// <summary>XP par touchdown.</summary>
-    public int XpParTouchdown { get; set; } = 3;
+    public int PspParTouchdown { get; set; } = 3;
 
     /// <summary>XP par passe complétée.</summary>
-    public int XpParPasse { get; set; } = 1;
+    public int PspParPasse { get; set; } = 1;
 
     /// <summary>XP par interception.</summary>
-    public int XpParInterception { get; set; } = 2;
+    public int PspParInterception { get; set; } = 2;
 
     /// <summary>XP par élimination infligée.</summary>
-    public int XpParElimination { get; set; } = 2;
+    public int PspParElimination { get; set; } = 2;
 
     /// <summary>XP bonus pour le joueur désigné MVP.</summary>
-    public int XpBonusMvp { get; set; } = 4;
+    public int PspBonusMvp { get; set; } = 4;
 
     /// <summary>XP par déviation (DEV). Zéro par défaut.</summary>
-    public int XpParDeviation { get; set; } = 0;
+    public int PspParDeviation { get; set; } = 0;
 
     /// <summary>XP par agression (AGRO). Zéro par défaut.</summary>
-    public int XpParAgression { get; set; } = 0;
+    public int PspParAgression { get; set; } = 0;
 
     // ── Barème de points de classement de la ligue ────────────────────────────
     // Copie prise sur la version de règles à la création, puis éditable par les

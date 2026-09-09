@@ -66,13 +66,13 @@ else
         @if (_joueursAmeliorables.Count == 0)
         {
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Aucun joueur n'a assez d'XP pour progresser.
+                Aucun joueur n'a assez d'PSP pour progresser.
             </MudText>
         }
         else
         {
             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-                Choisissez l'XP dépensée pour chaque compétence, dans la limite de l'XP
+                Choisissez l'PSP dépensée pour chaque compétence, dans la limite de l'PSP
                 disponible. Principale +20 000 po de valeur, secondaire +40 000 po.
             </MudText>
             @foreach (var j in _joueursAmeliorables)
@@ -97,7 +97,7 @@ else
                     @if (_choix.TryGetValue(j.Id, out var ch) && ch.SkillId is not null)
                     {
                         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2" Wrap="Wrap.Wrap">
-                            <MudNumericField T="int" Label="XP dépensée" Min="1" Max="@j.PointsStarPlayer"
+                            <MudNumericField T="int" Label="PSP dépensée" Min="1" Max="@j.PointsStarPlayer"
                                              Value="@ch.Xp" ValueChanged="@(v => DefinirXp(j.Id, v))"
                                              Variant="Variant.Outlined" Margin="Margin.Dense"
                                              Style="max-width:130px" />
@@ -221,9 +221,9 @@ else
         _choix[joueurId] = existant with { SkillId = skillId, EstPrincipale = principale };
     }
 
-    void DefinirXp(int joueurId, int xp)
+    void DefinirXp(int joueurId, int psp)
     {
-        if (_choix.TryGetValue(joueurId, out var c)) _choix[joueurId] = c with { Xp = xp };
+        if (_choix.TryGetValue(joueurId, out var c)) _choix[joueurId] = c with { Xp = psp };
     }
 
     async Task Valider()

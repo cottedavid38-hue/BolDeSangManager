@@ -319,7 +319,7 @@ public class BaremePointsLigueTests : IDisposable
         {
             var l = await db.Leagues.FindAsync(ligueId);
             (nomAvant, budgetAvant, xpTdAvant, statutAvant) =
-                (l!.Nom, l.BudgetDepart, l.XpParTouchdown, l.Statut);
+                (l!.Nom, l.BudgetDepart, l.PspParTouchdown, l.Statut);
         }
 
         await using (var db = _factory.CreateContext())
@@ -331,7 +331,7 @@ public class BaremePointsLigueTests : IDisposable
             var l = await db.Leagues.FindAsync(ligueId);
             Assert.Equal(nomAvant, l!.Nom);
             Assert.Equal(budgetAvant, l.BudgetDepart);
-            Assert.Equal(xpTdAvant, l.XpParTouchdown);
+            Assert.Equal(xpTdAvant, l.PspParTouchdown);
             Assert.Equal(statutAvant, l.Statut);
             Assert.Equal(3000, l.PointsVictoire);
         }

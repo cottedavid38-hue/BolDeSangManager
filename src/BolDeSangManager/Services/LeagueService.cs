@@ -247,11 +247,11 @@ public class LeagueService(
         ligue.Description          = modifiee.Description?.Trim() ?? string.Empty;
         ligue.Format               = modifiee.Format;
         ligue.NombreEquipesPlayoff = modifiee.NombreEquipesPlayoff;
-        ligue.XpParTouchdown       = modifiee.XpParTouchdown;
-        ligue.XpParPasse           = modifiee.XpParPasse;
-        ligue.XpParInterception    = modifiee.XpParInterception;
-        ligue.XpParElimination     = modifiee.XpParElimination;
-        ligue.XpBonusMvp           = modifiee.XpBonusMvp;
+        ligue.PspParTouchdown       = modifiee.PspParTouchdown;
+        ligue.PspParPasse           = modifiee.PspParPasse;
+        ligue.PspParInterception    = modifiee.PspParInterception;
+        ligue.PspParElimination     = modifiee.PspParElimination;
+        ligue.PspBonusMvp           = modifiee.PspBonusMvp;
 
         if (structurantsOuverts)
         {
@@ -873,7 +873,7 @@ public class LeagueService(
     public async Task ValiderApresMatchReposAsync(
         int ligueId,
         int teamId,
-        List<(int joueurId, int skillId, bool estPrincipale, int xpDepensee)> competences,
+        List<(int joueurId, int skillId, bool estPrincipale, int pspDepensee)> competences,
         List<(int positionId, string nom, int numero)> nouveauxJoueurs,
         int nouvellesRelances,
         TeamService teamService)
@@ -888,11 +888,11 @@ public class LeagueService(
         if (dejaValide)
             throw new InvalidOperationException("Cette équipe a déjà validé sa phase de repos.");
 
-        foreach (var (joueurId, skillId, estPrincipale, xpDepensee) in competences)
+        foreach (var (joueurId, skillId, estPrincipale, pspDepensee) in competences)
         {
             var type = estPrincipale ? ImprovementType.SelectionPrimaire : ImprovementType.SelectionSecondaire;
             await teamService.AppliquerAmeliorationAsync(joueurId, type, skillId: skillId,
-                matchSheetId: null, xpDepensee: xpDepensee);
+                matchSheetId: null, pspDepensee: pspDepensee);
         }
 
         foreach (var (positionId, nom, numero) in nouveauxJoueurs)

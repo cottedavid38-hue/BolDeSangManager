@@ -32,7 +32,7 @@ public readonly record struct PalierPoints(
 /// <summary>
 /// Barème des points de classement (« points de ligue ») d'un match.
 ///
-/// Même patron que <see cref="XpBareme"/> : les valeurs plates appartiennent à
+/// Même patron que <see cref="BaremePsp"/> : les valeurs plates appartiennent à
 /// la version de règles, la ligue en prend une copie à sa création. Les PALIERS,
 /// eux, n'existent qu'au niveau ligue — c'est un choix de format, pas une règle
 /// d'édition.

@@ -339,14 +339,14 @@ else
     /// <summary>
     /// Joueurs de chaque équipe pas encore présents sur la feuille. Alimente le
     /// sélecteur d'ajout : un joueur oublié à la saisie doit pouvoir être ajouté
-    /// après coup, sinon ses actions n'entrent jamais ni dans son XP ni dans le
+    /// après coup, sinon ses actions n'entrent jamais ni dans son PSP ni dans le
     /// classement.
     /// </summary>
     List<SelecteurJoueurMatch.JoueurDisponible> _dispoDomicile = [];
     List<SelecteurJoueurMatch.JoueurDisponible> _dispoExterieur = [];
 
-    /// <summary>Barème d'XP de la ligue, pour l'aide de saisie (valeurs configurables).</summary>
-    XpBareme _baremeXp = XpBareme.ParDefaut(GameType.BloodBowl);
+    /// <summary>Barème de PSP de la ligue, pour l'aide de saisie (valeurs configurables).</summary>
+    BaremePsp _baremeXp = BaremePsp.ParDefaut(GameType.BloodBowl);
 
     /// <summary>La ligue accorde-t-elle des points selon le tour atteint ?</summary>
     bool _ligueAvecPaliers;
@@ -362,9 +362,9 @@ else
     {
         _match = await MatchService.GetMatchAsync(Id);
 
-        // Barème d'XP et paliers de points de la ligue : ils pilotent l'aide de
+        // Barème de PSP et paliers de points de la ligue : ils pilotent l'aide de
         // saisie et l'affichage du champ « nombre de tours ».
-        _baremeXp = XpBareme.DeLigue(_match?.Division?.League,
+        _baremeXp = BaremePsp.DeLigue(_match?.Division?.League,
             _match?.Division?.League?.Game?.Type ?? GameType.BloodBowl);
         _ligueAvecPaliers = _match?.Division?.League?.PaliersPoints.Count > 0;
 
@@ -456,14 +456,14 @@ else
         _editNotes = _match.Feuille.NotesCommissaire ?? "";
         _editNombreDeTours = _match.Feuille.NombreDeTours;
 
-        // XP : on ne « pince » que les lignes dont la valeur en base DIVERGE du
+        // PSP : on ne « pince » que les lignes dont la valeur en base DIVERGE du
         // barème — celles-là ont été forcées à la main et doivent le rester.
         // Pincer toutes les lignes les empêcherait de suivre les steppers.
         foreach (var r in _editDomicile.Concat(_editExterieur))
         {
             var stockee = records.First(x => x.TeamPlayerId == r.TeamPlayerId
                                           && x.EstCoteDomicile == r.EstCoteDomicile).PspGagnes;
-            if (stockee != XpCalculee(r)) r.XpSaisie = stockee;
+            if (stockee != PspCalcules(r)) r.PspSaisie = stockee;
         }
 
         // Joueurs proposables à l'ajout : le roster MOINS ceux déjà sur la
@@ -544,7 +544,7 @@ else
                     @StatBlock("AGRESSIONS", r.Agressions, v => r.Agressions = Math.Max(0, r.Agressions + v))
                 </div>
 
-                @XpSection(r)
+                @PspSection(r)
 
                 <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;padding-top:8px">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
@@ -573,37 +573,37 @@ else
             </div>
         </MudPaper>;
 
-    /// <summary>XP proposée par le barème de la ligue pour ce joueur.</summary>
-    int XpCalculee(PlayerEditData r) =>
+    /// <summary>PSP proposée par le barème de la ligue pour ce joueur.</summary>
+    int PspCalcules(PlayerEditData r) =>
         _baremeXp.Calculer(r.Touchdowns, r.Passes, r.Interceptions, r.EliminationsInfligees,
                            EstMvp(r, r.EstCoteDomicile), r.Deviations, r.Agressions);
 
-    /// <summary>XP retenue : la saisie manuelle si elle existe, sinon le calcul.</summary>
-    int XpDe(PlayerEditData r) => r.XpSaisie ?? XpCalculee(r);
+    /// <summary>PSP retenue : la saisie manuelle si elle existe, sinon le calcul.</summary>
+    int PspDe(PlayerEditData r) => r.PspSaisie ?? PspCalcules(r);
 
     /// <summary>
-    /// Champ d'XP manuel, identique à celui de la saisie initiale : le barème n'est
+    /// Champ d'PSP manuel, identique à celui de la saisie initiale : le barème n'est
     /// qu'une PROPOSITION, c'est la valeur affichée ici qui est persistée.
     /// Tant que le commissaire n'y touche pas, elle suit les steppers ; dès qu'il
     /// la force, elle reste figée et l'écart au barème est signalé.
     /// </summary>
-    RenderFragment XpSection(PlayerEditData r)
+    RenderFragment PspSection(PlayerEditData r)
     {
-        int calc  = XpCalculee(r);
-        int val   = XpDe(r);
+        int calc  = PspCalcules(r);
+        int val   = PspDe(r);
         int ecart = val - calc;
         return @<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;padding-top:8px">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.MilitaryTech" Size="Size.Small" Color="Color.Warning" />
-                    <MudText Typo="Typo.caption"><b>XP</b></MudText>
+                    <MudText Typo="Typo.caption"><b>PSP</b></MudText>
                 </MudStack>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     @if (ecart != 0)
                     {
                         @* title HTML et non MudTooltip : celui-ci casse le circuit
                            Blazor dans une page InteractiveServer. *@
-                        <span title="@($"Barème : {calc} XP")">
+                        <span title="@($"Barème : {calc} PSP")">
                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
                                      Style="height:18px;font-size:10px">
                                 @(ecart > 0 ? "+" : "")@ecart
@@ -611,14 +611,14 @@ else
                         </span>
                     }
                     <MudNumericField T="int" Value="val" Min="0" Max="99"
-                                     ValueChanged="@(v => r.XpSaisie = v)"
+                                     ValueChanged="@(v => r.PspSaisie = v)"
                                      Variant="Variant.Outlined" Margin="Margin.Dense"
                                      Style="width:90px" />
-                    @if (r.XpSaisie is not null)
+                    @if (r.PspSaisie is not null)
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        title="Revenir à la valeur du barème"
-                                       OnClick="@(() => r.XpSaisie = null)" />
+                                       OnClick="@(() => r.PspSaisie = null)" />
                     }
                 </MudStack>
             </MudStack>
@@ -672,7 +672,7 @@ else
     /// <summary>
     /// Retire une ligne de la feuille et rend le joueur au sélecteur. Le service
     /// supprime puis réécrit toutes les lignes : une ligne retirée ici disparaît
-    /// donc réellement, avec son XP et sa blessure.
+    /// donc réellement, avec son PSP et sa blessure.
     /// </summary>
     void RetirerLigne(PlayerEditData r)
     {
@@ -722,7 +722,7 @@ else
                 EliminationsInfligees = r.EliminationsInfligees,
                 Deviations            = r.Deviations,
                 Agressions            = r.Agressions,
-                PspGagnes             = XpDe(r),
+                PspGagnes             = PspDe(r),
                 EstMVP                = ( r.EstCoteDomicile && r.TeamPlayerId == _mvpDomId)
                                      || (!r.EstCoteDomicile && r.TeamPlayerId == _mvpExtId),
                 Blessure     = r.Blessure,
@@ -764,10 +764,10 @@ else
         public int Agressions { get; set; }
 
         /// <summary>
-        /// XP forcée par le commissaire. null = suivre le barème, qui se
+        /// PSP forcée par le commissaire. null = suivre le barème, qui se
         /// recalcule alors quand on touche aux steppers.
         /// </summary>
-        public int? XpSaisie { get; set; }
+        public int? PspSaisie { get; set; }
 
         public InjuryType? Blessure { get; set; }
         public AffectedStat? StatAffectee { get; set; }

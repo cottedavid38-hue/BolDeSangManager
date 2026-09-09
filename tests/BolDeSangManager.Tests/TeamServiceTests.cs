@@ -335,7 +335,7 @@ public class TeamServiceTests : IDisposable
         var service = new TeamService(db, NullLogger<TeamService>.Instance);
         // R4 : l'XP dépensée est saisie par le coach et débitée de la cagnotte
         await service.AppliquerAmeliorationAsync(joueur.Id, ImprovementType.SelectionPrimaire,
-            skillId: skill.Id, xpDepensee: 6);
+            skillId: skill.Id, pspDepensee: 6);
 
         var maj = await db.TeamPlayers
             .Include(j => j.Improvements).ThenInclude(i => i.Skill)

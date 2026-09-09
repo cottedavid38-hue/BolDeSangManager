@@ -142,7 +142,7 @@ public class MatchPlayerRecord
 
     /// <summary>
     /// Déviations (DEV) réalisées par le joueur. Ne rapporte aucune XP par défaut
-    /// (XpParDeviation = 0), mais peut valoir des points de classement selon le
+    /// (PspParDeviation = 0), mais peut valoir des points de classement selon le
     /// barème de la ligue.
     /// </summary>
     public int Deviations { get; set; } = 0;

@@ -212,7 +212,7 @@ else
                             {
                                 @* Édition en place (#16) : le nom n'entre dans aucun calcul,
                                    donc pas de passage par l'écran de composition — qui, lui,
-                                   recrée tout le roster et détruirait XP et compétences. *@
+                                   recrée tout le roster et détruirait PSP et compétences. *@
                                 <MudTextField T="string" Value="@_renommageValeur"
                                               ValueChanged="@(v => _renommageValeur = v)"
                                               Immediate="true" AutoFocus="true"
@@ -387,7 +387,7 @@ else
                         <HeaderContent>
                             <MudTh>#</MudTh>
                             <MudTh>Joueur</MudTh>
-                            <MudTh Style="text-align:center">XP</MudTh>
+                            <MudTh Style="text-align:center">PSP</MudTh>
                             <MudTh Style="text-align:center">Amél.</MudTh>
                             @if (_estCommissaire)
                             {
@@ -397,13 +397,13 @@ else
                         <RowTemplate Context="j">
                             <MudTd DataLabel="N°">@j.Numero</MudTd>
                             <MudTd DataLabel="Joueur">@j.Nom</MudTd>
-                            <MudTd DataLabel="XP" Style="text-align:center"><b>@j.PointsStarPlayer</b></MudTd>
+                            <MudTd DataLabel="PSP" Style="text-align:center"><b>@j.PointsStarPlayer</b></MudTd>
                             <MudTd DataLabel="Améliorations" Style="text-align:center">@j.Improvements.Count</MudTd>
                             @if (_estCommissaire)
                             {
                                 <MudTd DataLabel="Action" Style="text-align:center">
                                     <MudIconButton Icon="@Icons.Material.Filled.EditNote" Size="Size.Small"
-                                                   title="Corriger l'XP de ce joueur"
+                                                   title="Corriger les PSP de ce joueur"
                                                    OnClick="@(() => CorrigerXp(j))" />
                                 </MudTd>
                             }
@@ -617,7 +617,7 @@ else
             _optionsDivinite = await TeamService.GetOptionsDiviniteAsync(_equipe.TeamTypeId);
         }
 
-        // Correction d'XP (R4) : réservée au commissaire de la ligue et aux grands commissaires.
+        // Correction d'PSP (R4) : réservée au commissaire de la ligue et aux grands commissaires.
         _estCommissaire = authState.User.IsInRole("Commissaire")
                        || authState.User.IsInRole("GrandCommissaire")
                        || authState.User.IsInRole("Admin")
@@ -646,13 +646,13 @@ else
 
     async Task CorrigerXp(TeamPlayer joueur)
     {
-        var parameters = new DialogParameters<CorrectionXpDialog>
+        var parameters = new DialogParameters<CorrectionPspDialog>
         {
             { x => x.Joueur, joueur },
             { x => x.CommissaireId, _userId }
         };
-        var dialog = await DialogService.ShowAsync<CorrectionXpDialog>(
-            "Corriger l'XP", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var dialog = await DialogService.ShowAsync<CorrectionPspDialog>(
+            "Corriger les PSP", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
         var result = await dialog.Result;
 
         if (result is { Canceled: false })

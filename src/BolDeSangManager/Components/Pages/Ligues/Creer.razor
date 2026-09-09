@@ -159,9 +159,9 @@ else
 
                 <MudDivider Class="my-3" />
 
-                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Barème d'XP</b></MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Barème de PSP</b></MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-                    XP gagnée par les joueurs selon leurs actions. Ces valeurs pré-remplissent
+                    PSP gagnée par les joueurs selon leurs actions. Ces valeurs pré-remplissent
                     la feuille de match — le coach peut ensuite les ajuster.
                 </MudText>
                 <MudGrid Spacing="2" Class="mb-3">
@@ -333,7 +333,7 @@ else
                 {
                     <MudList T="string" Dense="true">
                         <MudListItem Icon="@Icons.Material.Filled.Check" IconColor="Color.Success">
-                            Nom, description, format et barème d'XP : jusqu'au lancement de la saison
+                            Nom, description, format et barème de PSP : jusqu'au lancement de la saison
                         </MudListItem>
                         <MudListItem Icon="@Icons.Material.Filled.Lock" IconColor="Color.Warning">
                             Jeu, version des règles, budget et staff : jusqu'à la première équipe inscrite
@@ -388,7 +388,7 @@ else
 
     bool _modeBrouillard;
 
-    // Barème d'XP (R6) — valeurs LRB par défaut, ajustées selon le jeu choisi.
+    // Barème de PSP (R6) — valeurs LRB par défaut, ajustées selon le jeu choisi.
     int _xpTd = 3, _xpPasse = 1, _xpInterception = 2, _xpElimination = 2, _xpMvp = 4;
 
     /// <summary>
@@ -546,11 +546,11 @@ else
             8 => Playoff8,
             _ => Playoff4
         };
-        _xpTd            = ligue.XpParTouchdown;
-        _xpPasse         = ligue.XpParPasse;
-        _xpInterception  = ligue.XpParInterception;
-        _xpElimination   = ligue.XpParElimination;
-        _xpMvp           = ligue.XpBonusMvp;
+        _xpTd            = ligue.PspParTouchdown;
+        _xpPasse         = ligue.PspParPasse;
+        _xpInterception  = ligue.PspParInterception;
+        _xpElimination   = ligue.PspParElimination;
+        _xpMvp           = ligue.PspBonusMvp;
 
         _games              = await LeagueService.GetGamesAsync();
         _selectedGameNom    = _games.FirstOrDefault(g => g.Id == ligue.GameId)?.Nom ?? "";
@@ -564,7 +564,7 @@ else
 
     /// <summary>
     /// Reprend le staff défini sur la version de règles sélectionnée, en copie de
-    /// travail. Même principe que le barème d'XP : les règles fournissent les
+    /// travail. Même principe que le barème de PSP : les règles fournissent les
     /// valeurs par défaut, la ligue en garde sa propre version.
     /// </summary>
     async Task ChargerStaffAsync()
@@ -599,13 +599,13 @@ else
         staff.MaxLigue = plafonne ? Math.Max(staff.MaxCreation, 1) : null;
 
     /// <summary>
-    /// Reprend le barème d'XP défini sur la version de règles sélectionnée (R6).
+    /// Reprend le barème de PSP défini sur la version de règles sélectionnée (R6).
     /// Le commissaire peut ensuite l'ajuster pour cette ligue.
     /// </summary>
     void AppliquerBaremeDeVersion(GameType gameType)
     {
         var version = _versions.FirstOrDefault(v => v.Nom == _selectedVersionNom);
-        var bareme  = XpBareme.DeVersion(version, gameType);
+        var bareme  = BaremePsp.DeVersion(version, gameType);
         _xpTd           = bareme.ParTouchdown;
         _xpPasse        = bareme.ParPasse;
         _xpInterception = bareme.ParInterception;
@@ -682,11 +682,11 @@ else
                 BudgetDepart           = _budget,
                 NombreEquipesPlayoff   = nbPlayoff,
                 ModeBrouillard         = _modeBrouillard,
-                XpParTouchdown         = _xpTd,
-                XpParPasse             = _xpPasse,
-                XpParInterception      = _xpInterception,
-                XpParElimination       = _xpElimination,
-                XpBonusMvp             = _xpMvp,
+                PspParTouchdown         = _xpTd,
+                PspParPasse             = _xpPasse,
+                PspParInterception      = _xpInterception,
+                PspParElimination       = _xpElimination,
+                PspBonusMvp             = _xpMvp,
             };
 
             if (EstEdition)

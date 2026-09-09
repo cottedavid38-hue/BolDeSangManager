@@ -7,7 +7,7 @@ namespace BolDeSangManager.Data.Models;
 /// match. Chaque correction est journalisée pour rester auditable auprès des
 /// coaches : qui, quand, de combien à combien, et pourquoi.
 /// </summary>
-public class XpCorrection
+public class PspCorrection
 {
     public int Id { get; set; }
 

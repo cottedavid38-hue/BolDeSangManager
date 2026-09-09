@@ -460,7 +460,7 @@ public class LeagueServiceTests : IDisposable
         await service.ValiderApresMatchReposAsync(
             ligueId: ligue.Id,
             teamId: equipe.Id,
-            competences: [(joueur.Id, skill.Id, estPrincipale: true, xpDepensee: 6)],
+            competences: [(joueur.Id, skill.Id, estPrincipale: true, pspDepensee: 6)],
             nouveauxJoueurs: [],
             nouvellesRelances: 1,
             teamService: teamService);

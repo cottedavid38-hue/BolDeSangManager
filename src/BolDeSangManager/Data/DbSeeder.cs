@@ -382,9 +382,9 @@ public static class DbSeeder
         db.RulesVersions.AddRange(
             // Barème d'XP par défaut = LRB S3. Le touchdown vaut 5 en Dungeon Bowl.
             new RulesVersion { GameId = bb.Id, Nom = "Saison 3", EstActive = true, Ordre = 1,
-                               XpParTouchdown = 3 },
+                               PspParTouchdown = 3 },
             new RulesVersion { GameId = dbg.Id, Nom = "Edition 2022", EstActive = true, Ordre = 1,
-                               XpParTouchdown = 5 }
+                               PspParTouchdown = 5 }
         );
         await db.SaveChangesAsync();
     }

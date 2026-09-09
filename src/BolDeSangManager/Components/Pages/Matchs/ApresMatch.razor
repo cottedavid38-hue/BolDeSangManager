@@ -80,7 +80,7 @@ else
                     </span>
                 }
                 <br />
-                Vos choix d'après-match précédents ont été <b>annulés</b> et l'XP dépensée
+                Vos choix d'après-match précédents ont été <b>annulés</b> et l'PSP dépensée
                 vous a été rendue : refaites vos améliorations et vos recrutements.
                 @if (!string.IsNullOrWhiteSpace(_match.Feuille.NotesCommissaire))
                 {
@@ -127,7 +127,7 @@ else
                 <b>Améliorations disponibles</b>
             </MudText>
             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-                Le coach choisit l'XP dépensée pour chaque compétence, dans la limite de l'XP disponible du joueur.
+                Le coach choisit l'PSP dépensée pour chaque compétence, dans la limite de l'PSP disponible du joueur.
                 Principale +20 000 po de valeur, secondaire +40 000 po.
             </MudText>
             @foreach (var a in _ameliorations)
@@ -137,7 +137,7 @@ else
                         <MudItem xs="12" sm="4">
                             <MudText><b>@a.NomJoueur</b></MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                @a.NomPoste — <b>@a.PspTotal XP</b> disponibles
+                                @a.NomPoste — <b>@a.PspTotal PSP</b> disponibles
                             </MudText>
                         </MudItem>
                         <MudItem xs="12" sm="4">
@@ -157,11 +157,11 @@ else
                                          Label="Autoriser hors accès du poste" />
                         </MudItem>
                         <MudItem xs="12" sm="2">
-                            <MudNumericField @bind-Value="a.XpDepensee" Label="XP dépensée"
+                            <MudNumericField @bind-Value="a.PspDepensee" Label="PSP dépensée"
                                              Min="0" Max="@a.PspTotal"
                                              Variant="Variant.Outlined" Margin="Margin.Dense"
                                              Disabled="@(a.SkillId is null)"
-                                             HelperText="@(a.SkillId is null ? null : $"reste {a.PspTotal - a.XpDepensee}")" />
+                                             HelperText="@(a.SkillId is null ? null : $"reste {a.PspTotal - a.PspDepensee}")" />
                         </MudItem>
                         <MudItem xs="12" sm="2">
                             @if (a.SkillId is not null)
@@ -464,7 +464,7 @@ else
     /// Réagit à une action de l'AUTRE coach sur ce match.
     ///
     /// ⚠️ On ne recharge PAS l'écran : cette page porte une saisie en cours
-    /// (XP dépensés, recrutements, relances) qu'un rechargement effacerait.
+    /// (PSP dépensés, recrutements, relances) qu'un rechargement effacerait.
     /// On ne réagit qu'au seul changement qui rend l'écran caduc — le passage
     /// à « Terminé » — et on redirige alors vers le détail du match.
     /// </summary>
@@ -542,14 +542,14 @@ else
                        && AccesCompetencesHelpers.EstAccesPrincipal(skill, a.Acces);
 
         // Coût PROPOSÉ par le barème de la version, jamais imposé : le coach
-        // corrige à la main, comme pour l'XP de la feuille de match.
+        // corrige à la main, comme pour l'PSP de la feuille de match.
         //
         // ⚠️ On ne réécrit que si le coach n'a pas déjà saisi une valeur qui
         // DIVERGE de la proposition : sinon changer de compétence écraserait sa
         // correction, et « pincer » toutes les lignes les figerait toutes.
         var proposition = CoutPropose(a);
-        if (a.XpDepensee == 0 || a.XpDepensee == a.DernierePropositon)
-            a.XpDepensee = Math.Min(proposition, a.PspTotal);
+        if (a.PspDepensee == 0 || a.PspDepensee == a.DernierePropositon)
+            a.PspDepensee = Math.Min(proposition, a.PspTotal);
 
         a.DernierePropositon = proposition;
     }
@@ -577,7 +577,7 @@ else
     ///
     /// ⚠️ Sert à INTERPOLER les libellés (« principal +20k ») plutôt que de les
     /// écrire en dur : dès que le barème devient configurable, un texte figé
-    /// ment au coach. Même règle que les bandeaux du barème d'XP.
+    /// ment au coach. Même règle que les bandeaux du barème de PSP.
     /// </summary>
     BaremeAmelioration _bareme = BaremeAmelioration.ParDefaut();
 
@@ -652,7 +652,7 @@ else
         {
             var competences = _ameliorations
                 .Where(a => a.SkillId.HasValue)
-                .Select(a => (a.TeamPlayerId, a.SkillId!.Value, a.EstPrincipale, a.XpDepensee))
+                .Select(a => (a.TeamPlayerId, a.SkillId!.Value, a.EstPrincipale, a.PspDepensee))
                 .ToList();
 
             var nouveauxJoueurs = _recrutesEnAttente
@@ -703,8 +703,8 @@ else
         public List<PlayerPositionCategoryAccess> Acces { get; set; } = [];
         /// <summary>Case « hors accès » : réaffiche toutes les compétences (R7).</summary>
         public bool   HorsAcces   { get; set; }
-        /// <summary>XP que le coach choisit de dépenser pour cette amélioration (R4).</summary>
-        public int    XpDepensee  { get; set; }
+        /// <summary>PSP que le coach choisit de dépenser pour cette amélioration (R4).</summary>
+        public int    PspDepensee  { get; set; }
 
         /// <summary>
         /// Rang de la PROCHAINE amélioration de ce joueur (1 = première).

@@ -201,7 +201,7 @@ public class MatchService(
         // XP : depuis R4 la valeur saisie par le coach fait foi. Le barème ne sert
         // que de valeur par défaut (pré-remplie côté UI) ; on ne recalcule ici que
         // si l'appelant n'a rien fourni, pour rester compatible avec d'anciens appels.
-        var bareme = XpBareme.DeLigue(match.Division?.League,
+        var bareme = BaremePsp.DeLigue(match.Division?.League,
             match.Division?.League?.Game?.Type ?? GameType.BloodBowl);
         foreach (var record in records)
         {
@@ -736,7 +736,7 @@ public class MatchService(
 
     public async Task ValiderApresMatchCoachAsync(
         int matchId, int teamId,
-        List<(int joueurId, int skillId, bool estPrincipale, int xpDepensee)> competences,
+        List<(int joueurId, int skillId, bool estPrincipale, int pspDepensee)> competences,
         List<(int positionId, string nom, int numero)> nouveauxJoueurs,
         int nouvellesRelances,
         TeamService teamService)
@@ -765,11 +765,11 @@ public class MatchService(
             throw new InvalidOperationException("L'après-match a déjà été validé pour cette équipe.");
 
         // Améliorations (Sélection Primaire si principale, Secondaire sinon)
-        foreach (var (joueurId, skillId, estPrincipale, xpDepensee) in competences)
+        foreach (var (joueurId, skillId, estPrincipale, pspDepensee) in competences)
         {
             var type = estPrincipale ? ImprovementType.SelectionPrimaire : ImprovementType.SelectionSecondaire;
             await teamService.AppliquerAmeliorationAsync(joueurId, type, skillId: skillId,
-                matchSheetId: feuille.Id, xpDepensee: xpDepensee);
+                matchSheetId: feuille.Id, pspDepensee: pspDepensee);
         }
 
         // Recruter nouveaux joueurs
@@ -901,7 +901,7 @@ public class MatchService(
 
             // R4 : restituer l'XP dépensée pour cette amélioration, sinon elle
             // serait perdue (l'XP gagnée du match est retirée par ailleurs).
-            j.PointsStarPlayer += imp.XpDepensee;
+            j.PointsStarPlayer += imp.PspDepensee;
 
             // Inverser le mod de stat éventuel
             if (imp.StatAmelioree.HasValue)
@@ -980,7 +980,7 @@ public class MatchService(
         feuille.NombreDeTours          = feuilleModifiee.NombreDeTours;
 
         var gameType = match.Division?.League?.Game?.Type ?? GameType.BloodBowl;
-        var baremeModif = XpBareme.DeLigue(match.Division?.League, gameType);
+        var baremeModif = BaremePsp.DeLigue(match.Division?.League, gameType);
         foreach (var r in nouveauxRecords)
         {
             r.MatchSheetId = feuille.Id;

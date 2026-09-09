@@ -240,7 +240,7 @@ else
                                 @StatBlock("DÉVIATIONS", r.Deviations, v => r.Deviations = Math.Max(0, r.Deviations + v))
                                 @StatBlock("AGRESSIONS", r.Agressions, v => r.Agressions = Math.Max(0, r.Agressions + v))
                             </div>
-                            @XpSection(r)
+                            @PspSection(r)
                             @InjurySection(r)
                         </div>
                     </MudPaper>
@@ -300,7 +300,7 @@ else
                                 @StatBlock("DÉVIATIONS", r.Deviations, v => r.Deviations = Math.Max(0, r.Deviations + v))
                                 @StatBlock("AGRESSIONS", r.Agressions, v => r.Agressions = Math.Max(0, r.Agressions + v))
                             </div>
-                            @XpSection(r)
+                            @PspSection(r)
                             @InjurySection(r)
                         </div>
                     </MudPaper>
@@ -457,8 +457,8 @@ else
             </div>
         </div>;
 
-    /// <summary>Barème du match — sert à pré-remplir l'XP (R4).</summary>
-    XpBareme _bareme = XpBareme.ParDefaut(GameType.BloodBowl);
+    /// <summary>Barème du match — sert à pré-remplir l'PSP (R4).</summary>
+    BaremePsp _bareme = BaremePsp.ParDefaut(GameType.BloodBowl);
 
     /// <summary>
     /// La ligue accorde-t-elle des points différents selon le tour atteint ?
@@ -468,29 +468,29 @@ else
     bool _ligueAvecPaliers;
     int? _nombreDeTours;
 
-    /// <summary>XP proposée par le barème pour ce joueur.</summary>
-    int XpCalculee(PlayerMatchData r) =>
+    /// <summary>PSP proposée par le barème pour ce joueur.</summary>
+    int PspCalcules(PlayerMatchData r) =>
         _bareme.Calculer(r.Touchdowns, r.Passes, r.Interceptions, r.EliminationsInfligees, r.EstMVP,
                          r.Deviations, r.Agressions);
 
-    /// <summary>XP retenue : la saisie du coach si elle existe, sinon le calcul.</summary>
-    int XpDe(PlayerMatchData r) => r.XpSaisie ?? XpCalculee(r);
+    /// <summary>PSP retenue : la saisie du coach si elle existe, sinon le calcul.</summary>
+    int PspDe(PlayerMatchData r) => r.PspSaisie ?? PspCalcules(r);
 
-    RenderFragment XpSection(PlayerMatchData r)
+    RenderFragment PspSection(PlayerMatchData r)
     {
-        int calc = XpCalculee(r);
-        int val  = XpDe(r);
+        int calc = PspCalcules(r);
+        int val  = PspDe(r);
         int ecart = val - calc;
         return @<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;padding-top:8px">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.MilitaryTech" Size="Size.Small" Color="Color.Warning" />
-                    <MudText Typo="Typo.caption"><b>XP</b></MudText>
+                    <MudText Typo="Typo.caption"><b>PSP</b></MudText>
                 </MudStack>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     @if (ecart != 0)
                     {
-                        <MudTooltip Text="@($"Barème : {calc} XP")">
+                        <MudTooltip Text="@($"Barème : {calc} PSP")">
                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
                                      Style="height:18px;font-size:10px">
                                 @(ecart > 0 ? "+" : "")@ecart
@@ -498,14 +498,14 @@ else
                         </MudTooltip>
                     }
                     <MudNumericField T="int" Value="val" Min="0" Max="99"
-                                     ValueChanged="@(v => r.XpSaisie = v)"
+                                     ValueChanged="@(v => r.PspSaisie = v)"
                                      Variant="Variant.Outlined" Margin="Margin.Dense"
                                      Style="width:90px" HideSpinButtons="false" />
-                    @if (r.XpSaisie is not null)
+                    @if (r.PspSaisie is not null)
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        title="Revenir à la valeur du barème"
-                                       OnClick="@(() => r.XpSaisie = null)" />
+                                       OnClick="@(() => r.PspSaisie = null)" />
                     }
                 </MudStack>
             </MudStack>
@@ -569,7 +569,7 @@ else
         Notifications.MatchModifie += SurMatchModifieAsync;
 
         // Barème du jeu concerné (le TD vaut 5 en Dungeon Bowl, 3 sinon)
-        _bareme = XpBareme.DeLigue(_match.Division?.League,
+        _bareme = BaremePsp.DeLigue(_match.Division?.League,
             _match.Division?.League?.Game?.Type ?? GameType.BloodBowl);
 
         _ligueAvecPaliers = _match.Division?.League?.PaliersPoints.Count > 0;
@@ -691,7 +691,7 @@ else
                     EstMVP                = r.EstMVP,
                     Blessure              = r.Blessure,
                     StatAffectee          = r.Blessure == InjuryType.BlessurePersistante ? r.StatAffectee : null,
-                    PspGagnes             = XpDe(r)
+                    PspGagnes             = PspDe(r)
                 }).ToList();
 
             await MatchService.SaisirFeuilleMatchAsync(_match.Id, feuille, records, _userId);
@@ -759,7 +759,7 @@ else
         public InjuryType?   Blessure              { get; set; }
         public AffectedStat? StatAffectee          { get; set; }
 
-        /// <summary>XP saisie par le coach (R4). null = suivre la valeur calculée.</summary>
-        public int?          XpSaisie              { get; set; }
+        /// <summary>PSP saisie par le coach (R4). null = suivre la valeur calculée.</summary>
+        public int?          PspSaisie              { get; set; }
     }
 }

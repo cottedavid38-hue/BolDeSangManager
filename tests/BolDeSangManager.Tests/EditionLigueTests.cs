@@ -92,11 +92,11 @@ public class ModifierLigueAsyncTests : IDisposable
         Format = source.Format,
         BudgetDepart = source.BudgetDepart,
         NombreEquipesPlayoff = source.NombreEquipesPlayoff,
-        XpParTouchdown = source.XpParTouchdown,
-        XpParPasse = source.XpParPasse,
-        XpParInterception = source.XpParInterception,
-        XpParElimination = source.XpParElimination,
-        XpBonusMvp = source.XpBonusMvp,
+        PspParTouchdown = source.PspParTouchdown,
+        PspParPasse = source.PspParPasse,
+        PspParInterception = source.PspParInterception,
+        PspParElimination = source.PspParElimination,
+        PspBonusMvp = source.PspBonusMvp,
     };
 
     [Fact]
@@ -111,8 +111,8 @@ public class ModifierLigueAsyncTests : IDisposable
         m.Description = "Nouvelle description";
         m.Format = LeagueFormat.Libre;
         m.NombreEquipesPlayoff = 8;
-        m.XpParTouchdown = 5;
-        m.XpBonusMvp = 7;
+        m.PspParTouchdown = 5;
+        m.PspBonusMvp = 7;
 
         await svc.ModifierLigueAsync(ligue.Id, m, user.Id);
 
@@ -123,8 +123,8 @@ public class ModifierLigueAsyncTests : IDisposable
         Assert.Equal("Nouvelle description", relue.Description);
         Assert.Equal(LeagueFormat.Libre, relue.Format);
         Assert.Equal(8, relue.NombreEquipesPlayoff);
-        Assert.Equal(5, relue.XpParTouchdown);
-        Assert.Equal(7, relue.XpBonusMvp);
+        Assert.Equal(5, relue.PspParTouchdown);
+        Assert.Equal(7, relue.PspBonusMvp);
     }
 
     [Fact]

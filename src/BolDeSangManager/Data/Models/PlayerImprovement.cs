@@ -15,7 +15,7 @@ public class PlayerImprovement
     /// XP retirée de la cagnotte du joueur pour cette amélioration (R4).
     /// Saisie par le coach à l'après-match. Restituée si la feuille est annulée.
     /// </summary>
-    public int XpDepensee { get; set; }
+    public int PspDepensee { get; set; }
 
     // Skill acquise (si Type = AleaPrimaire/SelectionPrimaire/AleaSecondaire/SelectionSecondaire)
     public int? SkillId { get; set; }

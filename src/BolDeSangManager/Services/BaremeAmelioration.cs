@@ -23,7 +23,7 @@ namespace BolDeSangManager.Services;
 /// fait cette différence que sur le COÛT EN PSP.
 ///
 /// Isolé ici — plutôt qu'en constantes en dur — pour que le barème soit porté par
-/// la <see cref="RulesVersion"/> et réglable en admin, comme <see cref="XpBareme"/> :
+/// la <see cref="RulesVersion"/> et réglable en admin, comme <see cref="BaremePsp"/> :
 /// une édition future se règle sans développement (principe #2).
 /// </summary>
 public class BaremeAmelioration

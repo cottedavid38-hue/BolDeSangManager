@@ -250,7 +250,7 @@ public class BaremeAmeliorationPortableTests : IDisposable
         await using (var db = _factory.CreateContext())
         {
             var svc = new DataEditService(db, NullLogger<DataEditService>.Instance);
-            await svc.ModifierBaremeXpAsync(versionId, new XpBareme { ParTouchdown = 9 });
+            await svc.ModifierBaremeXpAsync(versionId, new BaremePsp { ParTouchdown = 9 });
             await svc.ModifierBaremePointsAsync(versionId, new BaremePoints { Victoire = 7 });
             await svc.RenommerVersionAsync(versionId, "Saison 3 bis");
         }
@@ -261,7 +261,7 @@ public class BaremeAmeliorationPortableTests : IDisposable
             var paliers = await db.PaliersAmelioration
                 .Where(p => p.RulesVersionId == versionId).OrderBy(p => p.Rang).ToListAsync();
 
-            Assert.Equal(9, v!.XpParTouchdown);      // le champ visé a bien changé…
+            Assert.Equal(9, v!.PspParTouchdown);      // le champ visé a bien changé…
             Assert.Equal(7, v.PointsVictoire);
             AssertBaremeReference(v, paliers);        // …et le barème n'a pas bougé
         }

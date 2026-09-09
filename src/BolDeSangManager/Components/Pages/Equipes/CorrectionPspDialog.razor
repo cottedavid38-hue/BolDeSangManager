@@ -7,14 +7,14 @@
     <DialogContent>
         <MudText Typo="Typo.subtitle1" Class="mb-1"><b>@Joueur.Nom</b></MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-            XP actuelle : <b>@Joueur.PointsStarPlayer</b>
+            PSP actuels : <b>@Joueur.PointsStarPlayer</b>
         </MudText>
 
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
             Cette correction est enregistrée avec votre nom et reste consultable par les coaches.
         </MudAlert>
 
-        <MudNumericField @bind-Value="_nouvelleValeur" Label="Nouvelle XP"
+        <MudNumericField @bind-Value="_nouvelleValeur" Label="Nouveaux PSP"
                          Min="0" Max="999" Variant="Variant.Outlined"
                          FullWidth="true" Class="mb-3" />
 
@@ -42,7 +42,7 @@
         <MudButton Color="Color.Error" Variant="Variant.Filled"
                    OnClick="Enregistrer" Disabled="@_enCours"
                    StartIcon="@Icons.Material.Filled.Save">
-            @(_enCours ? "Enregistrement…" : "Corriger l'XP")
+            @(_enCours ? "Enregistrement…" : "Corriger les PSP")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -56,7 +56,7 @@
     int _nouvelleValeur;
     string _motif = "";
     bool _enCours;
-    List<XpCorrection> _historique = [];
+    List<PspCorrection> _historique = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -85,7 +85,7 @@
             // capturer l'ancienne valeur AVANT l'appel : l'entité est mise à jour en place
             var ancienne = Joueur.PointsStarPlayer;
             await TeamService.CorrigerXpAsync(Joueur.Id, _nouvelleValeur, _motif, CommissaireId);
-            Snackbar.Add($"XP de {Joueur.Nom} corrigée : {ancienne} → {_nouvelleValeur}", Severity.Success);
+            Snackbar.Add($"PSP de {Joueur.Nom} corrigés : {ancienne} → {_nouvelleValeur}", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
         catch (Exception ex)
