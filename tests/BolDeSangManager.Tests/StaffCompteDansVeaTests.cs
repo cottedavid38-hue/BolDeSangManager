@@ -31,7 +31,10 @@ public class StaffCompteDansVeaTests : IDisposable
         };
         equipe.Joueurs.Add(new TeamPlayer
         {
-            Numero = 1, Nom = "Grim", ValeurActuelle = 80_000, Blessures = []
+            Numero = 1, Nom = "Grim", Blessures = [],
+            // La valeur d'un joueur vient de son poste depuis que la colonne
+            // ValeurActuelle a disparu : 80k de joueur pour ces scénarios.
+            PlayerPosition = new PlayerPosition { Nom = "Blitzer", Cout = 80_000 }
         });
         foreach (var s in staff) equipe.Staff.Add(s);
         return equipe;

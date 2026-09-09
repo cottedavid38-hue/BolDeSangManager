@@ -91,6 +91,43 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
             vDest.XpParAgression    = vSource.XpParAgression;
             // Barème de points de classement : mêmes règles, même clonage.
             BaremePoints.DeVersion(vSource).AppliquerA(vDest);
+            // Barème des améliorations : les 8 hausses de valeur…
+            var haussesSource = new BaremeAmelioration
+            {
+                HaussePrincipale    = vSource.HaussePrincipale,
+                HausseSecondaire    = vSource.HausseSecondaire,
+                HausseArmure        = vSource.HausseArmure,
+                HausseMouvement     = vSource.HausseMouvement,
+                HausseCapacitePasse = vSource.HausseCapacitePasse,
+                HausseAgilite       = vSource.HausseAgilite,
+                HausseForce         = vSource.HausseForce,
+                SurcoutElite        = vSource.SurcoutElite
+            };
+            haussesSource.AppliquerA(vDest);
+            await db.SaveChangesAsync();
+        }
+
+        // 0 bis. …et les 6 paliers de coût PSP. Une version source jamais
+        // paramétrée n'en a aucun : on pose alors le tableau LRB, jamais rien —
+        // sinon la version clonée proposerait 0 PSP partout.
+        {
+            var paliersSource = await db.PaliersAmelioration
+                .Where(p => p.RulesVersionId == sourceVersionId)
+                .OrderBy(p => p.Rang)
+                .ToListAsync();
+            if (paliersSource.Count == 0)
+                paliersSource = BaremeAmelioration.PaliersLrbParDefaut();
+
+            foreach (var src in paliersSource)
+                db.PaliersAmelioration.Add(new PalierAmeliorationPsp
+                {
+                    RulesVersionId      = destVersionId,
+                    Rang                = src.Rang,
+                    CoutAleaPrincipale  = src.CoutAleaPrincipale,
+                    CoutChoixPrincipale = src.CoutChoixPrincipale,
+                    CoutSecondaire      = src.CoutSecondaire,
+                    CoutCaracteristique = src.CoutCaracteristique
+                });
             await db.SaveChangesAsync();
         }
 
@@ -475,6 +512,15 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
             // sinon supprimer une version viderait le staff de ligues en cours.
             var staffTypes = await db.StaffTypes.Where(s => s.RulesVersionId == id).ToListAsync();
             db.StaffTypes.RemoveRange(staffTypes);
+            await db.SaveChangesAsync();
+
+            // Paliers de coût PSP du barème d'amélioration. La FK est en Cascade,
+            // mais on les retire explicitement : c'est le seul moyen de ne pas
+            // dépendre de l'état de `pragma foreign_keys` selon le fournisseur,
+            // et de garder la liste des enfants visible à la lecture.
+            var paliersAmelioration = await db.PaliersAmelioration
+                .Where(p => p.RulesVersionId == id).ToListAsync();
+            db.PaliersAmelioration.RemoveRange(paliersAmelioration);
             await db.SaveChangesAsync();
 
             db.RulesVersions.Remove(version);
@@ -1287,6 +1333,77 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
         logger.LogInformation(
             "Barème de points de la version '{Version}' : V={V}, N={N}, D={D}",
             version.Nom, bareme.Victoire, bareme.Nul, bareme.Defaite);
+    }
+
+    /// <summary>
+    /// Barème des AMÉLIORATIONS de joueur d'une version : les 8 hausses de valeur
+    /// et les 6 paliers de coût en PSP. Les paliers sont remplacés en bloc — le
+    /// LRB en définit exactement 6 (rangs 1 à 6), il n'y a pas de liste ouverte.
+    ///
+    /// ⚠️ Contrairement au barème d'XP, ce barème est lu EN DIRECT par le calcul
+    /// de la valeur d'un joueur : une correction se propage donc aux ligues en
+    /// cours, ce qui est précisément la demande.
+    /// </summary>
+    public async Task<BaremeAmelioration> GetBaremeAmeliorationAsync(int versionId)
+    {
+        var version = await db.RulesVersions
+            .Include(v => v.PaliersAmelioration)
+            .FirstOrDefaultAsync(v => v.Id == versionId)
+            ?? throw new InvalidOperationException("Version de règles introuvable");
+
+        return BaremeAmelioration.DeVersion(version);
+    }
+
+    public async Task ModifierBaremeAmeliorationAsync(int versionId, BaremeAmelioration bareme)
+    {
+        var version = await db.RulesVersions
+            .Include(v => v.PaliersAmelioration)
+            .FirstOrDefaultAsync(v => v.Id == versionId)
+            ?? throw new InvalidOperationException("Version de règles introuvable");
+
+        foreach (var p in bareme.Paliers)
+        {
+            if (p.Rang is < 1 or > 6)
+                throw new InvalidOperationException($"Rang d'amélioration invalide : {p.Rang} (attendu 1 à 6).");
+            if (p.CoutAleaPrincipale < 0 || p.CoutChoixPrincipale < 0
+                || p.CoutSecondaire < 0 || p.CoutCaracteristique < 0)
+                throw new InvalidOperationException("Un coût en PSP ne peut pas être négatif.");
+        }
+
+        bareme.AppliquerA(version);
+
+        // Les paliers sont mis à jour en place quand ils existent : garder la même
+        // ligne évite de faire enfler les identifiants à chaque enregistrement.
+        foreach (var saisi in bareme.Paliers)
+        {
+            var existant = version.PaliersAmelioration.FirstOrDefault(x => x.Rang == saisi.Rang);
+            if (existant is null)
+            {
+                db.PaliersAmelioration.Add(new PalierAmeliorationPsp
+                {
+                    RulesVersionId      = versionId,
+                    Rang                = saisi.Rang,
+                    CoutAleaPrincipale  = saisi.CoutAleaPrincipale,
+                    CoutChoixPrincipale = saisi.CoutChoixPrincipale,
+                    CoutSecondaire      = saisi.CoutSecondaire,
+                    CoutCaracteristique = saisi.CoutCaracteristique
+                });
+            }
+            else
+            {
+                existant.CoutAleaPrincipale  = saisi.CoutAleaPrincipale;
+                existant.CoutChoixPrincipale = saisi.CoutChoixPrincipale;
+                existant.CoutSecondaire      = saisi.CoutSecondaire;
+                existant.CoutCaracteristique = saisi.CoutCaracteristique;
+            }
+        }
+
+        await db.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Barème d'amélioration de la version '{Version}' : principale={P}, secondaire={S}, élite=+{E}, {Nb} palier(s)",
+            version.Nom, bareme.HaussePrincipale, bareme.HausseSecondaire,
+            bareme.SurcoutElite, bareme.Paliers.Count);
     }
 
     // ═══════════════════ Catégories de compétence ═══════════════════

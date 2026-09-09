@@ -48,6 +48,16 @@ public class MatchService(
             // R7 : accès de catégorie du poste, pour filtrer les compétences à l'après-match
             .Include(m => m.Feuille).ThenInclude(f => f!.RecordsJoueurs).ThenInclude(r => r.TeamPlayer)
                 .ThenInclude(p => p!.PlayerPosition).ThenInclude(pp => pp!.AccesCategories)
+            // Améliorations déjà prises : elles donnent le RANG de la prochaine,
+            // donc le coût en PSP proposé à l'après-match. Sans cet Include, le
+            // rang vaudrait toujours 1 et le coût serait faux — sans erreur.
+            .Include(m => m.Feuille).ThenInclude(f => f!.RecordsJoueurs).ThenInclude(r => r.TeamPlayer)
+                .ThenInclude(p => p!.Improvements)
+            // La version de règles porte le barème d'amélioration (hausses de
+            // valeur et coûts PSP) : sans elle, l'écran retombe sur le barème LRB
+            // par défaut au lieu de celui réglé par l'association.
+            .Include(m => m.Division).ThenInclude(d => d!.League).ThenInclude(l => l!.RulesVersion)
+                .ThenInclude(v => v!.PaliersAmelioration)
             .Include(m => m.Division).ThenInclude(d => d!.League).ThenInclude(l => l!.PaliersPoints)
             .FirstOrDefaultAsync(m => m.Id == matchId);
 
@@ -884,8 +894,10 @@ public class MatchService(
             var j = await db.TeamPlayers.FindAsync(imp.TeamPlayerId);
             if (j is null) continue;
 
-            // Inverser la hausse de valeur
-            j.ValeurActuelle = Math.Max(0, j.ValeurActuelle - imp.ValeurHausse);
+            // La valeur du joueur n'est plus stockée : elle se recalcule depuis
+            // le poste et les améliorations restantes (ValeurJoueurCalculator).
+            // Supprimer l'amélioration ci-dessous suffit donc à « inverser » la
+            // hausse — il n'y a plus de compteur à décrémenter.
 
             // R4 : restituer l'XP dépensée pour cette amélioration, sinon elle
             // serait perdue (l'XP gagnée du match est retirée par ailleurs).

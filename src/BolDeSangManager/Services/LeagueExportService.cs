@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using BolDeSangManager.Data;
 using BolDeSangManager.Data.Enums;
 using BolDeSangManager.Data.Models;
+using BolDeSangManager.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BolDeSangManager.Services;
@@ -41,6 +42,11 @@ public class LeagueExportService(
             .Include(l => l.Equipes).ThenInclude(e => e.Joueurs)
                 .ThenInclude(j => j.Competences.Where(c => !c.EstCompetenceDepart)).ThenInclude(c => c.Skill)
             .Include(l => l.Equipes).ThenInclude(e => e.Joueurs).ThenInclude(j => j.Blessures)
+            // Améliorations + leur compétence : sans ces deux Include, la liste
+            // exportée serait vide (ou le nom de compétence null) et toute la
+            // progression des joueurs serait silencieusement perdue au réimport.
+            .Include(l => l.Equipes).ThenInclude(e => e.Joueurs)
+                .ThenInclude(j => j.Improvements).ThenInclude(i => i.Skill)
             .Include(l => l.Equipes).ThenInclude(e => e.Staff).ThenInclude(ts => ts.LeagueStaffType)
             .Include(l => l.StaffTypes)
             .Include(l => l.PaliersPoints)
@@ -102,6 +108,8 @@ public class LeagueExportService(
 
     private static LeagueExportDto ToDto(League ligue)
     {
+        var bareme = BaremeAmelioration.DeVersion(ligue.RulesVersion);
+
         var playerTeam = ligue.Equipes
             .SelectMany(e => e.Joueurs.Select(j => (j.Id, e.Nom)))
             .ToDictionary(x => x.Id, x => x.Nom);
@@ -128,7 +136,9 @@ public class LeagueExportService(
                 Nom: j.Nom,
                 Numero: j.Numero,
                 PositionNom: j.PlayerPosition?.Nom ?? "",
-                ValeurActuelle: j.ValeurActuelle,
+                // Champ CONSERVÉ dans le format de fichier, mais désormais
+                // alimenté par le calcul (poste + hausses du barème).
+                ValeurActuelle: ValeurJoueurCalculator.Calculer(j, bareme),
                 PointsStarPlayer: j.PointsStarPlayer,
                 NombreAmeliorations: j.Improvements.Count,
                 ModMouvement: j.ModMouvement,
@@ -143,7 +153,18 @@ public class LeagueExportService(
                     .Where(c => !c.EstCompetenceDepart)
                     .Select(c => c.Skill?.Nom ?? "").Where(n => n != "").ToList(),
                 Blessures: j.Blessures
-                    .Select(b => new BlessureExportDto(b.Type, b.StatAffectee, b.Description)).ToList()
+                    .Select(b => new BlessureExportDto(b.Type, b.StatAffectee, b.Description)).ToList(),
+                // Historique de progression. La compétence part par NOM : les ids
+                // ne sont pas portables d'une instance à l'autre.
+                Ameliorations: j.Improvements
+                    .OrderBy(i => i.Palier).ThenBy(i => i.Id)
+                    .Select(i => new AmeliorationExportDto(
+                        Palier: i.Palier,
+                        Type: i.Type,
+                        StatAmelioree: i.StatAmelioree,
+                        SkillNom: i.Skill?.Nom,
+                        XpDepensee: i.XpDepensee,
+                        ValeurHausse: i.ValeurHausse)).ToList()
             )).ToList(),
             // Staff configurable : les colonnes historiques (relances, fans,
             // coachs, cheerleaders, apothicaire) ne couvrent que les 5 staff
@@ -442,9 +463,10 @@ public class LeagueExportService(
                     PlayerPositionId = position.Id,
                     Nom = joueurDto.Nom,
                     Numero = joueurDto.Numero,
-                    ValeurActuelle = joueurDto.ValeurActuelle,
                     PointsStarPlayer = joueurDto.PointsStarPlayer,
-                    // Données legacy d'import : NombreAmeliorations n'est plus appliqué ; les Improvements sont reconstruits lors des après-matchs.
+                    // NombreAmeliorations n'est qu'un COMPTEUR informatif du JSON :
+                    // l'historique réel est rejoué depuis `Ameliorations` plus bas,
+                    // qui porte le type, la stat et le nom de la compétence.
                     ModMouvement = joueurDto.ModMouvement,
                     ModForce = joueurDto.ModForce,
                     ModAgilite = joueurDto.ModAgilite,
@@ -472,6 +494,39 @@ public class LeagueExportService(
 
                 foreach (var b in joueurDto.Blessures)
                     db.PlayerInjuries.Add(new PlayerInjury { TeamPlayerId = joueur.Id, Type = b.Type, StatAffectee = b.StatAffectee, Description = b.Description, Date = DateTime.UtcNow });
+
+                // Améliorations : sans ce rejeu, une ligue réimportée perdait tout
+                // l'historique de progression de ses joueurs. Champ optionnel :
+                // un export antérieur n'en a pas, le joueur repart sans améliorations.
+                foreach (var a in joueurDto.Ameliorations ?? [])
+                {
+                    int? skillId = null;
+                    if (!string.IsNullOrWhiteSpace(a.SkillNom))
+                    {
+                        var skillAmelioration = await db.Skills.FirstOrDefaultAsync(
+                            s => s.Nom == a.SkillNom && s.RulesVersionId == rulesVersion.Id);
+                        if (skillAmelioration is not null)
+                            skillId = skillAmelioration.Id;
+                        else
+                            // On garde la ligne malgré tout : perdre l'amélioration
+                            // fausserait la valeur du joueur en silence.
+                            logger.LogWarning(
+                                "Amélioration de '{Joueur}' ({Equipe}) : compétence '{Skill}' introuvable dans la version '{Version}', importée sans compétence",
+                                joueurDto.Nom, equipeDto.Nom, a.SkillNom, rulesVersion.Nom);
+                    }
+
+                    db.PlayerImprovements.Add(new PlayerImprovement
+                    {
+                        TeamPlayerId = joueur.Id,
+                        Palier = a.Palier,
+                        Type = a.Type,
+                        StatAmelioree = a.StatAmelioree,
+                        SkillId = skillId,
+                        XpDepensee = a.XpDepensee,
+                        ValeurHausse = a.ValeurHausse,
+                        AppliqueLe = DateTime.UtcNow
+                    });
+                }
 
                 await db.SaveChangesAsync();
             }
@@ -651,7 +706,29 @@ record JoueurExportDto(
     bool EstRetraite,
     bool ManqueSuivantMatch,
     List<string> CompetencesAcquises,
-    List<BlessureExportDto> Blessures
+    List<BlessureExportDto> Blessures,
+    /// <summary>
+    /// Historique des améliorations du joueur. Optionnel : un JSON exporté avant
+    /// que l'export ne transporte les améliorations n'a pas ce champ, le joueur
+    /// est alors importé sans amélioration (comportement antérieur).
+    /// ⚠️ <c>NombreAmeliorations</c> et <c>ValeurActuelle</c> restent dans le DTO :
+    /// les retirer casserait la relecture des exports déjà produits.
+    /// </summary>
+    List<AmeliorationExportDto>? Ameliorations = null
+);
+
+/// <summary>
+/// Une amélioration acquise. La compétence est désignée par son NOM, résolu dans
+/// la version de règles d'accueil — un id de Skill n'est pas portable entre
+/// instances (même modèle que <c>CompetencesAcquises</c>).
+/// </summary>
+record AmeliorationExportDto(
+    int Palier,
+    ImprovementType Type,
+    AffectedStat? StatAmelioree,
+    string? SkillNom,
+    int XpDepensee,
+    int ValeurHausse
 );
 
 record BlessureExportDto(InjuryType Type, AffectedStat? StatAffectee, string Description);

@@ -190,7 +190,9 @@ public class CapitaineTests
         var tt = RaceAvecCapitaine("Pro");
         var equipe = new Team { TeamType = tt };
         var j = Joueur("Marcus");
-        j.ValeurActuelle = 90_000;
+        // La valeur vient désormais du poste : on la pose là plutôt que sur le
+        // joueur, la colonne ValeurActuelle n'existe plus.
+        j.PlayerPosition.Cout = 90_000;
         equipe.Joueurs.Add(j);
 
         var avant = VeaCalculator.Calculer(equipe);

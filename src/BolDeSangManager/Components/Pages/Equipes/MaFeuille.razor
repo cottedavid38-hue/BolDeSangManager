@@ -233,7 +233,7 @@ else
                         }
                     </MudTd>
                     <MudTd DataLabel="PSP" Style="text-align:center">@j.PointsStarPlayer</MudTd>
-                    <MudTd DataLabel="Valeur" Style="text-align:center">@j.ValeurActuelle.ToString("N0")</MudTd>
+                    <MudTd DataLabel="Valeur" Style="text-align:center">@ValeurJoueurCalculator.Calculer(j, ValeurJoueurCalculator.BaremeDe(_equipeDetail)).ToString("N0")</MudTd>
                 </RowTemplate>
             </MudTable>
         </div>

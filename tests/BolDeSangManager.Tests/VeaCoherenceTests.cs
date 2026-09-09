@@ -58,8 +58,10 @@ public class VeaCoherenceTests : IDisposable
         {
             Numero = 1,
             Nom = "Grim",
-            ValeurActuelle = 80_000,
-            Blessures = []
+            Blessures = [],
+            // La valeur du joueur vient de son POSTE (colonne ValeurActuelle
+            // supprimée) : 80k pour l'équipe de référence.
+            PlayerPosition = new PlayerPosition { Nom = "Blitzer", Cout = 80_000 }
         });
 
         // 2 relances tarifées par la race : 2 × 70 000 = 140 000

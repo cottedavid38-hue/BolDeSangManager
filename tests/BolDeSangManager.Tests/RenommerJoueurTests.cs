@@ -55,7 +55,6 @@ public class RenommerJoueurTests : IDisposable
         // On charge le joueur de tout ce qu'une saison lui a apporté.
         var (skill, _) = await DataSeeder.SeedSkillsAsync(db);
         joueur.PointsStarPlayer = 12;
-        joueur.ValeurActuelle = 90_000;
         joueur.ModForce = 1;
         joueur.Competences.Add(new TeamPlayerSkill { SkillId = skill.Id, EstCompetenceDepart = false });
         joueur.Blessures.Add(new PlayerInjury { Type = InjuryType.BlessurePersistante, Description = "Vieille douleur" });
@@ -71,7 +70,6 @@ public class RenommerJoueurTests : IDisposable
 
         Assert.Equal("Le Balafré", relu.Nom);
         Assert.Equal(12, relu.PointsStarPlayer);        // XP conservée
-        Assert.Equal(90_000, relu.ValeurActuelle);
         Assert.Equal(1, relu.ModForce);                 // amélioration conservée
         Assert.Single(relu.Competences);                // compétence acquise conservée
         Assert.Single(relu.Blessures);                  // blessure conservée

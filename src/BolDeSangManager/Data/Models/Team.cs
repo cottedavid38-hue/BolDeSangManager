@@ -77,7 +77,10 @@ public class TeamPlayer
     // Collection des améliorations de palier (voir PlayerImprovement).
     // Le nombre de paliers consommés = Improvements.Count.
     public ICollection<PlayerImprovement> Improvements { get; set; } = [];
-    public int ValeurActuelle { get; set; } = 0;
+    // ⚠️ Il n'y a PLUS de colonne ValeurActuelle : la valeur d'un joueur est
+    // CALCULÉE (Helpers/ValeurJoueurCalculator) depuis le coût de son poste et
+    // ses améliorations, pour qu'une correction du barème ou du prix d'un poste
+    // se propage aux joueurs déjà recrutés.
 
     // Modificateurs de caractéristiques (positif = amélioration, négatif = réduction)
     public int ModMouvement { get; set; } = 0;

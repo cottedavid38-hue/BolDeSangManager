@@ -169,7 +169,7 @@ else
                                 <MudChip T="string" Size="Size.Small"
                                          Color="@(a.EstPrincipale ? Color.Warning : Color.Default)"
                                          Icon="@(a.EstPrincipale ? Icons.Material.Filled.Star : Icons.Material.Filled.StarBorder)">
-                                    @(a.EstPrincipale ? "Principale +20k" : "Secondaire +40k")
+                                    @(a.EstPrincipale ? "Principale" : "Secondaire") @LibelleHausse(a.EstPrincipale, EstEliteChoisie(a))
                                 </MudChip>
                             }
                         </MudItem>
@@ -414,6 +414,11 @@ else
         // R7 : uniquement les compétences de la version de règles de la ligue
         _skills = await TeamService.GetCompetencesAsync(
             rulesVersionId: _match.Division?.League?.RulesVersionId);
+
+        // Barème d'amélioration de la version : coûts en PSP proposés et hausses
+        // de valeur affichées. Résolu ici pour que les libellés soient justes
+        // même si l'association a ajusté son barème.
+        _bareme = BaremeAmelioration.DeVersion(_match.Division?.League?.RulesVersion);
         _postesDisponibles = await TeamService.GetPostesDisponiblesAsync(_equipe.TeamTypeId);
 
         // Postes offerts par une règle spéciale de la race. Liste vide dans la
@@ -439,6 +444,9 @@ else
                 NomPoste     = r.TeamPlayer.PlayerPosition?.Nom ?? "",
                 PspTotal     = r.TeamPlayer.PointsStarPlayer,
                 Acces        = r.TeamPlayer.PlayerPosition?.AccesCategories?.ToList() ?? [],
+                // Le coût proposé dépend du rang : la 6e amélioration coûte
+                // beaucoup plus cher que la 1re (LRB, Tableau des Améliorations).
+                RangProchaineAmelioration = r.TeamPlayer.Improvements.Count + 1,
             })
             .ToList() ?? [];
 
@@ -489,11 +497,19 @@ else
     /// correctement les MudListSubheader dans son popover : on porte donc
     /// l'information de groupe directement dans le texte de l'item.
     /// </summary>
-    static string Etiquette(AccesCompetencesHelpers.CompetenceProposee c)
+    /// <summary>
+    /// Étiquette d'un item de la liste. `Etiquette` est appelée depuis le rendu :
+    /// elle ne peut pas être statique puisqu'elle interpole le barème résolu.
+    /// </summary>
+    string Etiquette(AccesCompetencesHelpers.CompetenceProposee c)
     {
         var cat = c.Skill.SkillCategoryDef?.Nom ?? "?";
         var elite = c.Skill.EstElite ? " ⭐" : "";
-        var marque = c.HorsAcces ? "⚠ hors accès" : c.EstPrincipale ? "principal +20k" : "secondaire +40k";
+        // Hausse interpolée depuis le barème de la version, jamais écrite en dur :
+        // une ligue au barème ajusté verrait sinon un montant faux.
+        var marque = c.HorsAcces
+            ? "⚠ hors accès"
+            : $"{(c.EstPrincipale ? "principal" : "secondaire")} {LibelleHausse(c.EstPrincipale, c.Skill.EstElite)}";
         return $"{c.Skill.Nom}{elite}  —  {cat} · {marque}";
     }
 
@@ -524,6 +540,53 @@ else
         var skill = _skills.FirstOrDefault(s => s.Id == skillId.Value);
         a.EstPrincipale = skill is not null
                        && AccesCompetencesHelpers.EstAccesPrincipal(skill, a.Acces);
+
+        // Coût PROPOSÉ par le barème de la version, jamais imposé : le coach
+        // corrige à la main, comme pour l'XP de la feuille de match.
+        //
+        // ⚠️ On ne réécrit que si le coach n'a pas déjà saisi une valeur qui
+        // DIVERGE de la proposition : sinon changer de compétence écraserait sa
+        // correction, et « pincer » toutes les lignes les figerait toutes.
+        var proposition = CoutPropose(a);
+        if (a.XpDepensee == 0 || a.XpDepensee == a.DernierePropositon)
+            a.XpDepensee = Math.Min(proposition, a.PspTotal);
+
+        a.DernierePropositon = proposition;
+    }
+
+    /// <summary>
+    /// Coût en PSP proposé pour la PROCHAINE amélioration de ce joueur : il
+    /// dépend du RANG (nombre d'améliorations déjà prises + 1) et du type.
+    /// </summary>
+    int CoutPropose(AmeliorationData a)
+    {
+        var type = a.EstPrincipale
+            ? ImprovementType.SelectionPrimaire
+            : ImprovementType.SelectionSecondaire;
+
+        return _bareme.CoutPsp(type, a.RangProchaineAmelioration);
+    }
+
+    /// <summary>La compétence choisie est-elle marquée « Élite » ?</summary>
+    bool EstEliteChoisie(AmeliorationData a) =>
+        a.SkillId is int id && _skills.FirstOrDefault(s => s.Id == id)?.EstElite == true;
+
+    /// <summary>
+    /// Barème d'amélioration de la version de règles de la ligue : hausses de
+    /// valeur et coûts en PSP. Résolu une fois au chargement.
+    ///
+    /// ⚠️ Sert à INTERPOLER les libellés (« principal +20k ») plutôt que de les
+    /// écrire en dur : dès que le barème devient configurable, un texte figé
+    /// ment au coach. Même règle que les bandeaux du barème d'XP.
+    /// </summary>
+    BaremeAmelioration _bareme = BaremeAmelioration.ParDefaut();
+
+    /// <summary>Hausse de valeur affichée pour une compétence, selon son accès.</summary>
+    string LibelleHausse(bool estPrincipale, bool estElite)
+    {
+        var type = estPrincipale ? ImprovementType.SelectionPrimaire : ImprovementType.SelectionSecondaire;
+        var montant = _bareme.Hausse(type, null, estElite);
+        return $"+{montant / 1000}k";
     }
 
     bool DejaValide() => _match?.Feuille is { } f
@@ -642,6 +705,20 @@ else
         public bool   HorsAcces   { get; set; }
         /// <summary>XP que le coach choisit de dépenser pour cette amélioration (R4).</summary>
         public int    XpDepensee  { get; set; }
+
+        /// <summary>
+        /// Rang de la PROCHAINE amélioration de ce joueur (1 = première).
+        /// Détermine le coût proposé : le LRB rend chaque amélioration plus
+        /// chère que la précédente.
+        /// </summary>
+        public int    RangProchaineAmelioration { get; set; } = 1;
+
+        /// <summary>
+        /// Dernier coût proposé par le barème. Sert à distinguer « le coach n'a
+        /// pas touché au champ » de « il a corrigé volontairement » : sans ce
+        /// témoin, changer de compétence écraserait une correction manuelle.
+        /// </summary>
+        public int    DernierePropositon { get; set; }
     }
 
     sealed class RecrueData

@@ -3,6 +3,16 @@
 @inject DataEditService DataEditService
 @inject ISnackbar Snackbar
 
+<style>
+    /* Le tableau des 6 rangs doit rester lisible sur téléphone : colonnes
+       serrées, en-têtes abrégés, champs numériques sans marge parasite. */
+    .bareme-psp th, .bareme-psp td { padding: 2px 4px !important; text-align: center; }
+    .bareme-psp th { font-size: .72rem; line-height: 1.1; white-space: normal; }
+    .bareme-psp td:first-child, .bareme-psp th:first-child { width: 12%; }
+    .bareme-psp .mud-input-control { margin-top: 0 !important; }
+    .bareme-psp input { text-align: center; }
+</style>
+
 <MudDialog>
     <DialogContent>
         <MudText Typo="Typo.subtitle1" Class="mb-1"><b>@Version.Nom</b></MudText>
@@ -94,6 +104,90 @@
                                  Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
             </MudItem>
         </MudGrid>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Améliorations de joueur</b></MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+            Hausse de valeur en po. S'applique <b>immédiatement</b>, y compris aux
+            améliorations déjà prises : la valeur d'un joueur est recalculée.
+        </MudText>
+
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hPrincipale" Label="Compétence principale"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hSecondaire" Label="Compétence secondaire"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hElite" Label="Supplément Élite"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hArmure" Label="+1 Armure"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hMouvement" Label="+1 Mouvement"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hCapacitePasse" Label="+1 Capacité de passe"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hAgilite" Label="+1 Agilité"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudNumericField T="int" @bind-Value="_hForce" Label="+1 Force"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1"><b>Coût en PSP par rang</b></MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2 d-block">
+            Valeurs <b>proposées</b> à l'après-match ; le coach peut les corriger.
+        </MudText>
+
+        <MudSimpleTable Dense="true" Striped="true" Class="bareme-psp">
+            <thead>
+                <tr>
+                    <th>Rang</th>
+                    <th title="Compétence principale tirée au hasard">Princ. aléa</th>
+                    <th title="Compétence principale choisie">Princ. choix</th>
+                    <th title="Compétence secondaire (hasard ou choix)">Second.</th>
+                    <th title="Amélioration de caractéristique">Carac.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in _paliers)
+                {
+                    <tr>
+                        <td title="@NomRang(p.Rang)">@p.Rang</td>
+                        <td>
+                            <MudNumericField T="int" @bind-Value="p.CoutAleaPrincipale" HideSpinButtons="true"
+                                             Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                        </td>
+                        <td>
+                            <MudNumericField T="int" @bind-Value="p.CoutChoixPrincipale" HideSpinButtons="true"
+                                             Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                        </td>
+                        <td>
+                            <MudNumericField T="int" @bind-Value="p.CoutSecondaire" HideSpinButtons="true"
+                                             Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                        </td>
+                        <td>
+                            <MudNumericField T="int" @bind-Value="p.CoutCaracteristique" HideSpinButtons="true"
+                                             Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Annuler">Annuler</MudButton>
@@ -111,9 +205,17 @@
 
     int _td, _passe, _interception, _elimination, _mvp, _xpDeviation, _xpAgression;
     int _ptVictoire, _ptNul, _ptDefaite, _ptTd, _ptElim, _ptInt, _ptPasse, _ptDev, _ptAgr;
+    int _hPrincipale, _hSecondaire, _hArmure, _hMouvement, _hCapacitePasse, _hAgilite, _hForce, _hElite;
+    List<PalierAmeliorationPsp> _paliers = [];
     bool _enCours;
 
-    protected override void OnInitialized()
+    static string NomRang(int rang) => rang switch
+    {
+        1 => "Expérimenté", 2 => "Vétéran", 3 => "Future Star",
+        4 => "Star", 5 => "Superstar", 6 => "Légende", _ => $"Rang {rang}"
+    };
+
+    protected override async Task OnInitializedAsync()
     {
         _td           = Version.XpParTouchdown;
         _passe        = Version.XpParPasse;
@@ -136,6 +238,32 @@
         _ptPasse    = pts.ParPasse;
         _ptDev      = pts.ParDeviation;
         _ptAgr      = pts.ParAgression;
+
+        // Le barème d'amélioration est relu depuis le service : la RulesVersion
+        // reçue en paramètre vient d'une requête qui ne charge PAS ses paliers.
+        var amel = await DataEditService.GetBaremeAmeliorationAsync(Version.Id);
+        _hPrincipale    = amel.HaussePrincipale;
+        _hSecondaire    = amel.HausseSecondaire;
+        _hArmure        = amel.HausseArmure;
+        _hMouvement     = amel.HausseMouvement;
+        _hCapacitePasse = amel.HausseCapacitePasse;
+        _hAgilite       = amel.HausseAgilite;
+        _hForce         = amel.HausseForce;
+        _hElite         = amel.SurcoutElite;
+
+        // Copie de travail : on n'édite jamais les entités suivies par EF tant
+        // que l'utilisateur n'a pas validé.
+        _paliers = amel.Paliers
+            .OrderBy(p => p.Rang)
+            .Select(p => new PalierAmeliorationPsp
+            {
+                Rang                = p.Rang,
+                CoutAleaPrincipale  = p.CoutAleaPrincipale,
+                CoutChoixPrincipale = p.CoutChoixPrincipale,
+                CoutSecondaire      = p.CoutSecondaire,
+                CoutCaracteristique = p.CoutCaracteristique
+            })
+            .ToList();
     }
 
     void Annuler() => MudDialog.Cancel();
@@ -167,6 +295,19 @@
                 ParPasse        = _ptPasse,
                 ParDeviation    = _ptDev,
                 ParAgression    = _ptAgr
+            });
+
+            await DataEditService.ModifierBaremeAmeliorationAsync(Version.Id, new BaremeAmelioration
+            {
+                HaussePrincipale    = _hPrincipale,
+                HausseSecondaire    = _hSecondaire,
+                HausseArmure        = _hArmure,
+                HausseMouvement     = _hMouvement,
+                HausseCapacitePasse = _hCapacitePasse,
+                HausseAgilite       = _hAgilite,
+                HausseForce         = _hForce,
+                SurcoutElite        = _hElite,
+                Paliers             = _paliers
             });
 
             Snackbar.Add($"Barèmes de « {Version.Nom} » mis à jour.", Severity.Success);

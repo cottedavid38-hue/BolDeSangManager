@@ -215,7 +215,6 @@ public static class DataSeeder
             PlayerPositionId = positionId,
             Nom = nom,
             Numero = numero,
-            ValeurActuelle = 50_000,
             RecruteLe = DateTime.UtcNow
         };
         db.TeamPlayers.Add(player);

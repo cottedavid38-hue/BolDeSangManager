@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BolDeSangManager.Data;
+using BolDeSangManager.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,8 +70,12 @@ public class PersonalDataExportService(
         var equipes = await db.Teams.AsNoTracking().AsSplitQuery()
             .Where(t => t.CoachId == userId)
             .Include(t => t.TeamType)
-            .Include(t => t.League)
+            // RulesVersion + améliorations : la valeur d'un joueur est CALCULÉE
+            // (coût du poste + hausses du barème). Sans ces Include, le fichier
+            // exporté annoncerait des valeurs fausses sans aucune erreur.
+            .Include(t => t.League).ThenInclude(l => l.RulesVersion).ThenInclude(v => v.PaliersAmelioration)
             .Include(t => t.Joueurs).ThenInclude(j => j.PlayerPosition)
+            .Include(t => t.Joueurs).ThenInclude(j => j.Improvements).ThenInclude(i => i.Skill)
             .OrderBy(t => t.CreeLe)
             .ToListAsync();
 
@@ -136,7 +141,9 @@ public class PersonalDataExportService(
                     Nom: j.Nom,
                     Poste: j.PlayerPosition?.Nom ?? "",
                     PointsStarPlayer: j.PointsStarPlayer,
-                    ValeurActuelle: j.ValeurActuelle,
+                    // Champ CONSERVÉ dans le format du fichier, alimenté par le
+                    // calcul plutôt que par la colonne.
+                    ValeurActuelle: ValeurJoueurCalculator.Calculer(j, BaremeAmelioration.DeVersion(e.League?.RulesVersion)),
                     RecruteLe: j.RecruteLe,
                     EstMort: j.EstMort,
                     EstRetraite: j.EstRetraite))]))],

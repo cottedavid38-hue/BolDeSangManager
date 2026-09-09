@@ -221,7 +221,7 @@ public class XpLibreTests : IDisposable
         var joueur = new TeamPlayer
         {
             TeamId = equipe.Id, PlayerPositionId = position.Id,
-            Nom = "Grok", Numero = 1, PointsStarPlayer = xpDepart, ValeurActuelle = 50_000
+            Nom = "Grok", Numero = 1, PointsStarPlayer = xpDepart
         };
         db.TeamPlayers.Add(joueur);
         await db.SaveChangesAsync();

@@ -67,6 +67,12 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
             .OrderBy(r => r.Ordre).ThenBy(r => r.Nom)
             .ToListAsync();
 
+        // Barème des améliorations : les 6 paliers de coût PSP de la version.
+        var paliersAmelioration = await db.PaliersAmelioration
+            .Where(p => p.RulesVersionId == rulesVersionId)
+            .OrderBy(p => p.Rang)
+            .ToListAsync();
+
         // F3 : chaque export produit une nouvelle révision, persistée sur la
         // version. Sans persistance le numéro repartirait à 1 à chaque fois et
         // ne prouverait rien.
@@ -144,6 +150,18 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
             )).ToList(),
             ReglesSpeciales: reglesSpeciales.Select(r => new SpecialRuleGdDto(
                 r.Nom, r.Description, r.Ordre, r.Code
+            )).ToList(),
+            HaussePrincipale: version.HaussePrincipale,
+            HausseSecondaire: version.HausseSecondaire,
+            HausseArmure: version.HausseArmure,
+            HausseMouvement: version.HausseMouvement,
+            HausseCapacitePasse: version.HausseCapacitePasse,
+            HausseAgilite: version.HausseAgilite,
+            HausseForce: version.HausseForce,
+            SurcoutElite: version.SurcoutElite,
+            PaliersAmelioration: paliersAmelioration.Select(p => new PalierAmeliorationGdDto(
+                p.Rang, p.CoutAleaPrincipale, p.CoutChoixPrincipale,
+                p.CoutSecondaire, p.CoutCaracteristique
             )).ToList()
         );
 
@@ -189,6 +207,9 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
         await using var tx = await db.Database.BeginTransactionAsync();
         try
         {
+            // Repli du barème d'amélioration pour tout champ absent du fichier.
+            var baremeDefaut = BaremeAmelioration.ParDefaut();
+
             // 1. Créer la version
             var nextOrdre = await db.RulesVersions
                 .Where(v => v.GameId == gameId)
@@ -226,9 +247,42 @@ public class GameDataExportService(ApplicationDbContext db, ILogger<GameDataExpo
                 PointsParInterception = dto.PointsParInterception ?? 0,
                 PointsParPasse        = dto.PointsParPasse        ?? 0,
                 PointsParDeviation    = dto.PointsParDeviation    ?? 0,
-                PointsParAgression    = dto.PointsParAgression    ?? 0
+                PointsParAgression    = dto.PointsParAgression    ?? 0,
+                // Barème des améliorations : absent d'un export antérieur, on
+                // reprend le barème LRB — jamais des zéros, qui feraient valoir
+                // 0 po toutes les améliorations déjà prises par les joueurs.
+                HaussePrincipale    = dto.HaussePrincipale    ?? baremeDefaut.HaussePrincipale,
+                HausseSecondaire    = dto.HausseSecondaire    ?? baremeDefaut.HausseSecondaire,
+                HausseArmure        = dto.HausseArmure        ?? baremeDefaut.HausseArmure,
+                HausseMouvement     = dto.HausseMouvement     ?? baremeDefaut.HausseMouvement,
+                HausseCapacitePasse = dto.HausseCapacitePasse ?? baremeDefaut.HausseCapacitePasse,
+                HausseAgilite       = dto.HausseAgilite       ?? baremeDefaut.HausseAgilite,
+                HausseForce         = dto.HausseForce         ?? baremeDefaut.HausseForce,
+                SurcoutElite        = dto.SurcoutElite        ?? baremeDefaut.SurcoutElite
             };
             db.RulesVersions.Add(version);
+            await db.SaveChangesAsync();
+
+            // Paliers de coût PSP. Même règle : un fichier sans bloc barème donne
+            // le tableau LRB, pas une version sans palier (qui proposerait 0 PSP).
+            var paliersDto = dto.PaliersAmelioration is { Count: > 0 }
+                ? dto.PaliersAmelioration
+                : BaremeAmelioration.PaliersLrbParDefaut()
+                    .Select(p => new PalierAmeliorationGdDto(
+                        p.Rang, p.CoutAleaPrincipale, p.CoutChoixPrincipale,
+                        p.CoutSecondaire, p.CoutCaracteristique))
+                    .ToList();
+
+            foreach (var p in paliersDto.OrderBy(p => p.Rang))
+                db.PaliersAmelioration.Add(new PalierAmeliorationPsp
+                {
+                    RulesVersionId      = version.Id,
+                    Rang                = p.Rang,
+                    CoutAleaPrincipale  = p.CoutAleaPrincipale,
+                    CoutChoixPrincipale = p.CoutChoixPrincipale,
+                    CoutSecondaire      = p.CoutSecondaire,
+                    CoutCaracteristique = p.CoutCaracteristique
+                });
             await db.SaveChangesAsync();
 
             // 2. Catégories de compétence
@@ -1106,7 +1160,29 @@ record GameDataExportDto(
     List<StaffTypeGdDto>? Staff = null,
     // Catalogue de règles spéciales (LRB p.93-94). Optionnel pour la même
     // raison : un export antérieur s'importe sans règles spéciales.
-    List<SpecialRuleGdDto>? ReglesSpeciales = null
+    List<SpecialRuleGdDto>? ReglesSpeciales = null,
+    // Barème des AMÉLIORATIONS de joueur (hausse de valeur). Optionnels : un
+    // export antérieur retombe sur le barème LRB (BaremeAmelioration.ParDefaut),
+    // surtout PAS sur des zéros — une amélioration ne vaudrait alors plus rien.
+    int? HaussePrincipale = null,
+    int? HausseSecondaire = null,
+    int? HausseArmure = null,
+    int? HausseMouvement = null,
+    int? HausseCapacitePasse = null,
+    int? HausseAgilite = null,
+    int? HausseForce = null,
+    int? SurcoutElite = null,
+    // Coût en PSP par rang. Absent d'un export antérieur ⇒ tableau LRB.
+    List<PalierAmeliorationGdDto>? PaliersAmelioration = null
+);
+
+/// <summary>Coût en PSP d'une amélioration pour un rang donné (1 à 6).</summary>
+record PalierAmeliorationGdDto(
+    int Rang,
+    int CoutAleaPrincipale,
+    int CoutChoixPrincipale,
+    int CoutSecondaire,
+    int CoutCaracteristique
 );
 
 /// <summary>

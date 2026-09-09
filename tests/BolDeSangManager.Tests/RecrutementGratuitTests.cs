@@ -1,3 +1,4 @@
+using BolDeSangManager.Helpers;
 using BolDeSangManager.Data.Models;
 using BolDeSangManager.Services;
 using BolDeSangManager.Tests.Helpers;
@@ -199,8 +200,14 @@ public class RecrutementGratuitTests
 
         using (var db = factory.CreateContext())
         {
-            var joueur = await db.TeamPlayers.FirstAsync(j => j.TeamId == ctx.EquipeId);
-            Assert.Equal(40_000, joueur.ValeurActuelle);
+            var joueur = await db.TeamPlayers
+                .Include(j => j.PlayerPosition)
+                .Include(j => j.Improvements)
+                .FirstAsync(j => j.TeamId == ctx.EquipeId);
+            // Une recrue GRATUITE garde la valeur de son poste : elle ne coûte
+            // rien au budget, mais elle vaut son prix dans la VEA.
+            Assert.Equal(40_000,
+                ValeurJoueurCalculator.Calculer(joueur, BaremeAmelioration.ParDefaut()));
         }
     }
 
@@ -250,7 +257,7 @@ public class RecrutementGratuitTests
                 db.TeamPlayers.Add(new TeamPlayer
                 {
                     TeamId = ctx.EquipeId, PlayerPositionId = ctx.PosteAutreId,
-                    Nom = $"G{i}", Numero = i, ValeurActuelle = 75_000
+                    Nom = $"G{i}", Numero = i
                 });
             await db.SaveChangesAsync();
         }

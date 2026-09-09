@@ -165,7 +165,11 @@ public class PdfService
                     // depuis les colonnes de staff HISTORIQUES de Team, qui sont
                     // à zéro sur toute équipe moderne : la feuille imprimée
                     // annonçait une VEA amputée de tout le staff.
-                    var vea = VeaCalculator.Calculer(equipe);
+                    // Barème résolu UNE fois : il sert à la VEA comme à la
+                    // colonne « Valeur » de chaque joueur, qui sont calculées et
+                    // doivent donc partager exactement la même base.
+                    var bareme = ValeurJoueurCalculator.BaremeDe(equipe);
+                    var vea = VeaCalculator.Calculer(equipe, bareme);
 
                     // Cases : trésorerie, VEA, puis le staff réellement détenu
                     // (liste ouverte — un staff créé par l'association apparaît
@@ -260,7 +264,7 @@ public class PdfService
                             CellStat(table, bg, EffStatStr(pos?.CapacitePasse ?? "—", joueur.ModCapacitePasse, false), joueur.ModCapacitePasse);
                             CellStat(table, bg, EffStatStr(pos?.Armure        ?? "—", joueur.ModArmure,        true),  joueur.ModArmure);
                             CellPsp(table, bg, joueur.PointsStarPlayer);
-                            Cell(table, bg, $"{joueur.ValeurActuelle / 1000}k", center: true);
+                            Cell(table, bg, $"{ValeurJoueurCalculator.Calculer(joueur, bareme) / 1000}k", center: true);
                             Cell(table, bg, competences);
 
                             pair = !pair;

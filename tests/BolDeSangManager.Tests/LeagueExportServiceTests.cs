@@ -371,6 +371,177 @@ public class LeagueExportServiceTests : IDisposable
 
     // ─── Cycle export → import (round-trip) ──────────────────────────────────
 
+    // ─── Améliorations : aller-retour export → import ────────────────────────
+
+    /// <summary>
+    /// Donne 2 améliorations à Gromag : une compétence (résolue par nom) et une
+    /// hausse de caractéristique.
+    /// </summary>
+    private async Task<(int skillId, string skillNom)> SeedAmeliorationsGromagAsync()
+    {
+        await using var setup = _factory.CreateContext();
+        var (skill, _) = await DataSeeder.SeedSkillsAsync(setup);
+        var gromag = await setup.TeamPlayers.FirstAsync(j => j.Nom == "Gromag");
+
+        setup.PlayerImprovements.AddRange(
+            new PlayerImprovement
+            {
+                TeamPlayerId = gromag.Id, Palier = 1,
+                Type = ImprovementType.SelectionPrimaire,
+                SkillId = skill.Id, XpDepensee = 6, ValeurHausse = 20_000
+            },
+            new PlayerImprovement
+            {
+                TeamPlayerId = gromag.Id, Palier = 2,
+                Type = ImprovementType.AmeliorationCarac,
+                StatAmelioree = AffectedStat.Mouvement,
+                XpDepensee = 16, ValeurHausse = 20_000
+            });
+        await setup.SaveChangesAsync();
+        return (skill.Id, skill.Nom);
+    }
+
+    [Fact]
+    public async Task ExportImport_PreserveLesAmeliorationsDuJoueur()
+    {
+        // Bug historique : l'export ne portait qu'un COMPTEUR
+        // (NombreAmeliorations) que l'import n'appliquait jamais — une ligue
+        // réimportée perdait toute la progression de ses joueurs.
+        var (ligue, commissaire) = await SetupLigueAvecEquipesAsync();
+        var (_, skillNom) = await SeedAmeliorationsGromagAsync();
+
+        byte[] bytes;
+        await using (var dbExport = _factory.CreateContext())
+            bytes = await CreateService(dbExport).ExportAsync(ligue.Id);
+
+        // Le nom de la compétence doit voyager (pas son id, non portable).
+        Assert.Contains(skillNom, Encoding.UTF8.GetString(bytes));
+
+        League importee;
+        await using (var dbImport = _factory.CreateContext())
+        {
+            using var flux = new MemoryStream(bytes);
+            importee = await CreateService(dbImport).ImportAsync(flux, commissaire.Id);
+        }
+
+        await using var verif = _factory.CreateContext();
+        var gromag = await verif.TeamPlayers
+            .Include(j => j.Improvements).ThenInclude(i => i.Skill)
+            .FirstAsync(j => j.Nom == "Gromag" && j.Team.LeagueId == importee.Id);
+
+        Assert.Equal(2, gromag.Improvements.Count);
+
+        var comp = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.SelectionPrimaire));
+        Assert.Equal(1, comp.Palier);
+        Assert.Equal(6, comp.XpDepensee);
+        Assert.Null(comp.StatAmelioree);
+
+        var carac = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.AmeliorationCarac));
+        Assert.Equal(2, carac.Palier);
+        Assert.Equal(AffectedStat.Mouvement, carac.StatAmelioree);
+        Assert.Null(carac.SkillId);
+    }
+
+    [Fact]
+    public async Task ExportImport_AmeliorationDeCompetence_RetrouveSaCompetenceParNom()
+    {
+        var (ligue, commissaire) = await SetupLigueAvecEquipesAsync();
+        var (skillIdOrigine, skillNom) = await SeedAmeliorationsGromagAsync();
+
+        byte[] bytes;
+        await using (var dbExport = _factory.CreateContext())
+            bytes = await CreateService(dbExport).ExportAsync(ligue.Id);
+
+        League importee;
+        await using (var dbImport = _factory.CreateContext())
+        {
+            using var flux = new MemoryStream(bytes);
+            importee = await CreateService(dbImport).ImportAsync(flux, commissaire.Id);
+        }
+
+        await using var verif = _factory.CreateContext();
+        var comp = await verif.PlayerImprovements
+            .Include(i => i.Skill)
+            .FirstAsync(i => i.TeamPlayer.Nom == "Gromag"
+                             && i.TeamPlayer.Team.LeagueId == importee.Id
+                             && i.SkillId != null);
+
+        Assert.Equal(skillNom, comp.Skill!.Nom);
+        // Même version de règles ici, donc le même id : ce qui compte est que la
+        // résolution passe par le NOM (cf. test « compétence introuvable »).
+        Assert.Equal(skillIdOrigine, comp.SkillId);
+    }
+
+    [Fact]
+    public async Task Import_JsonSansAmeliorations_ResteImportable()
+    {
+        // Rétrocompatibilité : un export produit AVANT ce champ doit s'importer
+        // sans erreur, le joueur se retrouvant simplement sans amélioration.
+        var (ligue, commissaire) = await SetupLigueAvecEquipesAsync();
+        await SeedAmeliorationsGromagAsync();
+
+        byte[] bytes;
+        await using (var dbExport = _factory.CreateContext())
+            bytes = await CreateService(dbExport).ExportAsync(ligue.Id);
+
+        // On retire le tableau « ameliorations » du JSON (et la virgule qui le
+        // précède, sinon le document devient invalide).
+        var json = Encoding.UTF8.GetString(bytes);
+        var sansAmeliorations = System.Text.RegularExpressions.Regex.Replace(
+            json, ",\\s*\"ameliorations\"\\s*:\\s*\\[[^\\[\\]]*\\]", "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        sansAmeliorations = System.Text.RegularExpressions.Regex.Replace(
+            sansAmeliorations, ",\\s*\"ameliorations\"\\s*:\\s*\\[(?:[^\\[\\]]|\\[[^\\[\\]]*\\])*\\]", "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        Assert.DoesNotContain("\"ameliorations\"", sansAmeliorations, StringComparison.OrdinalIgnoreCase);
+
+        League importee;
+        await using (var dbImport = _factory.CreateContext())
+        {
+            using var flux = new MemoryStream(Encoding.UTF8.GetBytes(sansAmeliorations));
+            importee = await CreateService(dbImport).ImportAsync(flux, commissaire.Id);
+        }
+
+        await using var verif = _factory.CreateContext();
+        var gromag = await verif.TeamPlayers
+            .Include(j => j.Improvements)
+            .FirstAsync(j => j.Nom == "Gromag" && j.Team.LeagueId == importee.Id);
+        Assert.Empty(gromag.Improvements);
+    }
+
+    [Fact]
+    public async Task Import_CompetenceIntrouvable_NEchouePasEtGardeLAmelioration()
+    {
+        // Une compétence absente de la version d'accueil ne doit ni faire échouer
+        // l'import, ni faire disparaître la ligne : SkillId reste null.
+        var (ligue, commissaire) = await SetupLigueAvecEquipesAsync();
+        var (_, skillNom) = await SeedAmeliorationsGromagAsync();
+
+        byte[] bytes;
+        await using (var dbExport = _factory.CreateContext())
+            bytes = await CreateService(dbExport).ExportAsync(ligue.Id);
+
+        var json = Encoding.UTF8.GetString(bytes)
+            .Replace(skillNom, "Compétence D'Une Autre Édition");
+
+        League importee;
+        await using (var dbImport = _factory.CreateContext())
+        {
+            using var flux = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            importee = await CreateService(dbImport).ImportAsync(flux, commissaire.Id);
+        }
+
+        await using var verif = _factory.CreateContext();
+        var gromag = await verif.TeamPlayers
+            .Include(j => j.Improvements)
+            .FirstAsync(j => j.Nom == "Gromag" && j.Team.LeagueId == importee.Id);
+
+        Assert.Equal(2, gromag.Improvements.Count);
+        var comp = Assert.Single(gromag.Improvements.Where(i => i.Type == ImprovementType.SelectionPrimaire));
+        Assert.Null(comp.SkillId);
+        Assert.Equal(6, comp.XpDepensee);
+    }
+
     [Fact]
     public async Task ExportImport_PreserveStatsEquipes()
     {

@@ -1,3 +1,4 @@
+using BolDeSangManager.Data.Enums;
 using BolDeSangManager.Data.Models;
 using BolDeSangManager.Helpers;
 using BolDeSangManager.Services;
@@ -33,14 +34,30 @@ public class CoutNulParMotCleTests
         return tt;
     }
 
-    private static TeamPlayer Joueur(TeamType tt, string motsCles, int cout, int valeurActuelle)
+    /// <summary>
+    /// Joueur d'un poste coûtant <paramref name="cout"/>, éventuellement porteur
+    /// d'améliorations.
+    ///
+    /// ⚠️ La valeur d'un joueur est CALCULÉE (coût du poste + hausses du barème),
+    /// plus lue dans une colonne : un joueur « amélioré » se fabrique donc en lui
+    /// donnant de vraies <c>PlayerImprovement</c>, pas en forçant un montant.
+    /// </summary>
+    private static TeamPlayer Joueur(TeamType tt, string motsCles, int cout,
+        params (ImprovementType type, AffectedStat? stat)[] ameliorations)
     {
         var poste = new PlayerPosition
         {
             Nom = "Poste", TeamType = tt, MotsCles = motsCles, Cout = cout
         };
         tt.Postes.Add(poste);
-        return new TeamPlayer { PlayerPosition = poste, ValeurActuelle = valeurActuelle };
+
+        var joueur = new TeamPlayer { PlayerPosition = poste };
+        foreach (var (amelioration, i) in ameliorations.Select((a, i) => (a, i + 1)))
+            joueur.Improvements.Add(new PlayerImprovement
+            {
+                Palier = i, Type = amelioration.type, StatAmelioree = amelioration.stat
+            });
+        return joueur;
     }
 
     // ── Sans la règle : rien ne change ───────────────────────────────────────
@@ -50,7 +67,7 @@ public class CoutNulParMotCleTests
     {
         var tt = new TeamType { Nom = "Humains", CoutRelance = 50_000 };
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Humain", 50_000, 50_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Humain", 50_000));
 
         Assert.Equal(50_000, VeaCalculator.Calculer(equipe));
     }
@@ -62,7 +79,7 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
 
         Assert.Equal(0, VeaCalculator.Calculer(equipe));
     }
@@ -78,8 +95,9 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        // Embauché 15 000, vaut 35 000 après deux améliorations.
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 35_000));
+        // Embauché 15 000, vaut 35 000 après une compétence principale (+20 000).
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000,
+            (ImprovementType.SelectionPrimaire, null)));
 
         Assert.Equal(20_000, VeaCalculator.Calculer(equipe));
     }
@@ -90,8 +108,8 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000));
-        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000, 115_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
+        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000));
 
         Assert.Equal(115_000, VeaCalculator.Calculer(equipe));
     }
@@ -106,8 +124,8 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Gros Bras");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000));
-        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000, 115_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
+        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000));
 
         Assert.Equal(15_000, VeaCalculator.Calculer(equipe));
     }
@@ -118,10 +136,12 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart, Gros Bras");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000));
-        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000, 120_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
+        // Troll embauché 115 000, +1 AR (+10 000) → 125 000, moins le coût = 10 000.
+        equipe.Joueurs.Add(Joueur(tt, "Gros Bras,Troll", 115_000,
+            (ImprovementType.AmeliorationForceArmure, AffectedStat.Armure)));
 
-        Assert.Equal(5_000, VeaCalculator.Calculer(equipe));
+        Assert.Equal(10_000, VeaCalculator.Calculer(equipe));
     }
 
     /// <summary>
@@ -134,7 +154,7 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
 
         Assert.Equal(15_000, VeaCalculator.Calculer(equipe));
     }
@@ -148,7 +168,7 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quartier,Snotling", 15_000, 15_000));
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quartier,Snotling", 15_000));
 
         Assert.Equal(15_000, VeaCalculator.Calculer(equipe));
     }
@@ -159,8 +179,10 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        // Cas limite : valeur actuelle inférieure au coût d'embauche.
-        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000, 10_000));
+        // Cas limite : joueur sans aucune amélioration, donc valeur = coût
+        // d'embauche exactement. Le Math.Max reste le garde-fou si un barème
+        // futur permettait une hausse négative.
+        equipe.Joueurs.Add(Joueur(tt, "Trois-quart,Snotling", 15_000));
 
         Assert.Equal(0, VeaCalculator.Calculer(equipe));
     }
@@ -171,7 +193,7 @@ public class CoutNulParMotCleTests
     {
         var tt = RaceAvecVilPrix("Trois-quart");
         var equipe = new Team { TeamType = tt };
-        var mort = Joueur(tt, "Trois-quart,Snotling", 15_000, 15_000);
+        var mort = Joueur(tt, "Trois-quart,Snotling", 15_000);
         mort.EstMort = true;
         equipe.Joueurs.Add(mort);
 
@@ -237,11 +259,20 @@ public class CoutNulParMotCleTests
             db.Teams.Add(equipe);
             await db.SaveChangesAsync();
 
-            // Embauché 15 000, amélioré à 35 000 → doit compter 20 000.
-            db.TeamPlayers.Add(new TeamPlayer
+            // Embauché 15 000, une compétence principale (+20 000) → 35 000,
+            // moins le coût d'embauche exonéré : doit compter 20 000.
+            var piti = new TeamPlayer
             {
                 TeamId = equipe.Id, PlayerPositionId = poste.Id,
-                Nom = "Piti", Numero = 1, ValeurActuelle = 35_000
+                Nom = "Piti", Numero = 1
+            };
+            db.TeamPlayers.Add(piti);
+            await db.SaveChangesAsync();
+
+            db.PlayerImprovements.Add(new PlayerImprovement
+            {
+                TeamPlayerId = piti.Id, Palier = 1,
+                Type = ImprovementType.SelectionPrimaire
             });
             await db.SaveChangesAsync();
             equipeId = equipe.Id;

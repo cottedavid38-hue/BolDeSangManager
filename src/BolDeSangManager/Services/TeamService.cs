@@ -104,7 +104,10 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
             // Règles spéciales de la race : affichées sur la feuille d'équipe
             // et sur le PDF. Sans ce Include, elles disparaîtraient en silence.
             .Include(t => t.TeamType).ThenInclude(tt => tt.ReglesSpecialesListe).ThenInclude(l => l.SpecialRule)
-            .Include(t => t.League)
+            // RulesVersion : porte le barème des améliorations, dont dépend la
+            // valeur CALCULÉE de chaque joueur (ValeurJoueurCalculator). Sans ce
+            // Include, le barème retombe sur le LRB par défaut en silence.
+            .Include(t => t.League).ThenInclude(l => l.RulesVersion).ThenInclude(v => v.PaliersAmelioration)
             .Include(t => t.Joueurs)
                 .ThenInclude(j => j.PlayerPosition)
                     .ThenInclude(pp => pp.CompetencesDepart)
@@ -120,6 +123,12 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
                 .ThenInclude(s => s!.SkillCategoryDef)
             .Include(t => t.Joueurs)
                 .ThenInclude(j => j.Blessures)
+            // Améliorations + leur compétence (drapeau Élite) : la valeur du
+            // joueur est RECALCULÉE depuis elles. Un Include manquant donnerait
+            // une valeur fausse sans la moindre erreur.
+            .Include(t => t.Joueurs)
+                .ThenInclude(j => j.Improvements)
+                .ThenInclude(i => i.Skill)
             // Staff : indispensable au calcul de VEA, qui vaudrait sinon zéro.
             .Include(t => t.Staff).ThenInclude(s => s.LeagueStaffType)
             .FirstOrDefaultAsync(t => t.Id == teamId);
@@ -127,8 +136,11 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
     public async Task<List<Team>> GetEquipesCoachAsync(string coachId) =>
         await db.Teams
             .Include(t => t.TeamType).ThenInclude(tt => tt.Game)
-            .Include(t => t.League)
+            .Include(t => t.League).ThenInclude(l => l.RulesVersion).ThenInclude(v => v.PaliersAmelioration)
             .Include(t => t.Joueurs.Where(j => !j.EstMort && !j.EstRetraite))
+                .ThenInclude(j => j.PlayerPosition)
+            .Include(t => t.Joueurs.Where(j => !j.EstMort && !j.EstRetraite))
+                .ThenInclude(j => j.Improvements).ThenInclude(i => i.Skill)
             .Include(t => t.Staff).ThenInclude(s => s.LeagueStaffType)
             .Where(t => t.CoachId == coachId)
             .OrderByDescending(t => t.CreeLe)
@@ -139,6 +151,11 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
             .Include(t => t.Coach)
             .Include(t => t.TeamType)
             .Include(t => t.Division)
+            .Include(t => t.League).ThenInclude(l => l.RulesVersion).ThenInclude(v => v.PaliersAmelioration)
+            .Include(t => t.Joueurs.Where(j => !j.EstMort && !j.EstRetraite))
+                .ThenInclude(j => j.PlayerPosition)
+            .Include(t => t.Joueurs.Where(j => !j.EstMort && !j.EstRetraite))
+                .ThenInclude(j => j.Improvements).ThenInclude(i => i.Skill)
             .Include(t => t.Staff).ThenInclude(s => s.LeagueStaffType)
             .Where(t => t.LeagueId == ligueId)
             .OrderByDescending(t => t.PointsLigue)
@@ -200,7 +217,6 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
                 PlayerPositionId = positionId,
                 Nom = string.IsNullOrWhiteSpace(nom) ? $"#{numero}" : nom,
                 Numero = numero,
-                ValeurActuelle = position.Cout,
                 RecruteLe = DateTime.UtcNow
             };
             db.TeamPlayers.Add(joueur);
@@ -379,7 +395,6 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
                 PlayerPositionId = positionId,
                 Nom = string.IsNullOrWhiteSpace(nom) ? $"#{numero}" : nom,
                 Numero = numero,
-                ValeurActuelle = position.Cout,
                 RecruteLe = DateTime.UtcNow
             };
             db.TeamPlayers.Add(joueur);
@@ -701,7 +716,6 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
             PlayerPositionId = positionId,
             Nom = string.IsNullOrWhiteSpace(nom) ? $"#{numero}" : nom,
             Numero = numero,
-            ValeurActuelle = position.Cout,
             // Trace la recrue offerte : c'est elle qui plafonne le droit à une
             // par phase d'après-match, et la supprimer rend ce droit.
             RecrueGratuiteMatchId = gratuit ? matchId : null,
@@ -829,7 +843,8 @@ public class TeamService(ApplicationDbContext db, ILogger<TeamService> logger)
             }
         }
 
-        joueur.ValeurActuelle += hausse;
+        // La valeur n'est plus stockée : l'ajout de l'amélioration ci-dessus
+        // suffit, ValeurJoueurCalculator la recalcule depuis le barème courant.
         await db.SaveChangesAsync();
 
         logger.LogInformation(

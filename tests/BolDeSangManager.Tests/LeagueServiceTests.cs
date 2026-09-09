@@ -445,7 +445,7 @@ public class LeagueServiceTests : IDisposable
         {
             TeamId = equipe.Id,
             PlayerPositionId = position.Id,
-            Nom = "J1", Numero = 1, ValeurActuelle = 50_000, PointsStarPlayer = 6
+            Nom = "J1", Numero = 1, PointsStarPlayer = 6
         };
         db.TeamPlayers.Add(joueur);
         var vId = (await db.RulesVersions.FirstAsync()).Id;
@@ -1489,7 +1489,7 @@ public class LeagueServiceTests : IDisposable
         var joueur = new TeamPlayer
         {
             TeamId = equipeIds[0], PlayerPositionId = position.Id,
-            Nom = "Blessé", Numero = 1, ValeurActuelle = 50_000,
+            Nom = "Blessé", Numero = 1,
             ManqueSuivantMatch = true, RecruteLe = DateTime.UtcNow
         };
         db.TeamPlayers.Add(joueur);

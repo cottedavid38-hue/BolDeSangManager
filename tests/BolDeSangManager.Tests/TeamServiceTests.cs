@@ -1,3 +1,4 @@
+using BolDeSangManager.Helpers;
 using BolDeSangManager.Data;
 using BolDeSangManager.Data.Enums;
 using BolDeSangManager.Data.Models;
@@ -81,8 +82,14 @@ public class TeamServiceTests : IDisposable
         await svc.CreerEquipeAsync(equipe, [(position.Id, "Marc", 1)]);
 
         await using var db2 = _factory.CreateContext();
-        var joueur = await db2.TeamPlayers.FirstAsync(j => j.TeamId == equipe.Id);
-        Assert.Equal(position.Cout, joueur.ValeurActuelle);
+        var joueur = await db2.TeamPlayers
+            .Include(j => j.PlayerPosition)
+            .Include(j => j.Improvements)
+            .FirstAsync(j => j.TeamId == equipe.Id);
+        // La valeur n'est plus stockée : elle vaut le coût du poste tant que le
+        // joueur n'a aucune amélioration.
+        Assert.Equal(position.Cout,
+            ValeurJoueurCalculator.Calculer(joueur, BaremeAmelioration.ParDefaut()));
     }
 
     [Fact]
@@ -193,15 +200,19 @@ public class TeamServiceTests : IDisposable
         equipe.Joueurs.Add(new TeamPlayer
         {
             PlayerPositionId = position.Id,
+            // La navigation, pas seulement la FK : l'équipe est montée en
+            // mémoire et jamais relue, le calcul de valeur a besoin du poste.
+            PlayerPosition = position,
             Nom = "J1", Numero = 1,
-            ValeurActuelle = 80_000,
             RecruteLe = DateTime.UtcNow
         });
 
         var vea = svc.CalculerVEA(equipe);
 
-        // 80k joueur + 100k relances + 30k fans + 10k coach = 220 000
-        Assert.Equal(220_000, vea);
+        // Le joueur vaut le coût de son poste (50k), les fans sont HORS VEA
+        // par défaut : 50k joueur + 100k relances + 10k coach + 30k fans*
+        // (*ce fixture les compte : CompteDansVea n'est pas positionné à false).
+        Assert.Equal(position.Cout + 100_000 + 30_000 + 10_000, vea);
     }
 
     [Fact]
@@ -220,15 +231,16 @@ public class TeamServiceTests : IDisposable
             TeamType = teamType
         };
         equipe.Joueurs.Add(new TeamPlayer
-            { PlayerPositionId = position.Id, Nom = "Vivant", Numero = 1, ValeurActuelle = 60_000, RecruteLe = DateTime.UtcNow });
+            { PlayerPositionId = position.Id, PlayerPosition = position, Nom = "Vivant", Numero = 1, RecruteLe = DateTime.UtcNow });
         equipe.Joueurs.Add(new TeamPlayer
-            { PlayerPositionId = position.Id, Nom = "Mort", Numero = 2, ValeurActuelle = 60_000, EstMort = true, RecruteLe = DateTime.UtcNow });
+            { PlayerPositionId = position.Id, PlayerPosition = position, Nom = "Mort", Numero = 2, EstMort = true, RecruteLe = DateTime.UtcNow });
         equipe.Joueurs.Add(new TeamPlayer
-            { PlayerPositionId = position.Id, Nom = "Retraité", Numero = 3, ValeurActuelle = 60_000, EstRetraite = true, RecruteLe = DateTime.UtcNow });
+            { PlayerPositionId = position.Id, PlayerPosition = position, Nom = "Retraité", Numero = 3, EstRetraite = true, RecruteLe = DateTime.UtcNow });
 
         var vea = svc.CalculerVEA(equipe);
 
-        Assert.Equal(60_000, vea);  // Seul le joueur vivant compte
+        // Seul le joueur vivant compte, à la valeur de son poste.
+        Assert.Equal(position.Cout, vea);
     }
 
     [Fact]
@@ -275,7 +287,7 @@ public class TeamServiceTests : IDisposable
         {
             TeamId = equipe.Id,
             PlayerPositionId = position.Id,
-            Nom = "Test", Numero = 1, ValeurActuelle = 50_000,
+            Nom = "Test", Numero = 1,
             PointsStarPlayer = 3 // Moins que le seuil de 6
         };
         db.TeamPlayers.Add(joueur);
@@ -308,7 +320,7 @@ public class TeamServiceTests : IDisposable
         {
             TeamId = equipe.Id,
             PlayerPositionId = position.Id,
-            Nom = "Test", Numero = 1, ValeurActuelle = 50_000,
+            Nom = "Test", Numero = 1,
             PointsStarPlayer = 6
         };
         db.TeamPlayers.Add(joueur);
@@ -325,11 +337,16 @@ public class TeamServiceTests : IDisposable
         await service.AppliquerAmeliorationAsync(joueur.Id, ImprovementType.SelectionPrimaire,
             skillId: skill.Id, xpDepensee: 6);
 
-        var maj = await db.TeamPlayers.Include(j => j.Improvements).Include(j => j.Competences).FirstAsync(j => j.Id == joueur.Id);
+        var maj = await db.TeamPlayers
+            .Include(j => j.Improvements).ThenInclude(i => i.Skill)
+            .Include(j => j.PlayerPosition)
+            .Include(j => j.Competences).FirstAsync(j => j.Id == joueur.Id);
         Assert.Single(maj.Improvements);
         Assert.Equal(1, maj.Improvements.First().Palier);
         Assert.Equal(ImprovementType.SelectionPrimaire, maj.Improvements.First().Type);
-        Assert.Equal(70_000, maj.ValeurActuelle); // 50_000 + 20_000
+        // Coût du poste + hausse LRB d'une compétence principale (20k).
+        Assert.Equal(position.Cout + 20_000,
+            ValeurJoueurCalculator.Calculer(maj, BaremeAmelioration.ParDefaut()));
         Assert.Equal(0, maj.PointsStarPlayer);    // 6 XP dépensés sur 6
         Assert.Contains(maj.Competences, c => c.SkillId == skill.Id && !c.EstCompetenceDepart);
     }

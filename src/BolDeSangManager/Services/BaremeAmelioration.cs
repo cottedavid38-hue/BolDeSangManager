@@ -142,6 +142,26 @@ public class BaremeAmelioration
     };
 
     /// <summary>
+    /// Écrit les 8 hausses de valeur sur une version de règles. Ne touche PAS aux
+    /// paliers PSP : ils forment une collection, remplacée séparément par le
+    /// service (même découpage que <see cref="BaremePoints.AppliquerA(RulesVersion)"/>).
+    ///
+    /// ⚠️ Exhaustif par construction : tout champ oublié ici reprendrait son
+    /// défaut C# et écraserait silencieusement la valeur en base.
+    /// </summary>
+    public void AppliquerA(RulesVersion version)
+    {
+        version.HaussePrincipale    = HaussePrincipale;
+        version.HausseSecondaire    = HausseSecondaire;
+        version.HausseArmure        = HausseArmure;
+        version.HausseMouvement     = HausseMouvement;
+        version.HausseCapacitePasse = HausseCapacitePasse;
+        version.HausseAgilite       = HausseAgilite;
+        version.HausseForce         = HausseForce;
+        version.SurcoutElite        = SurcoutElite;
+    }
+
+    /// <summary>
     /// Barème porté par la version de règles — la référence éditable en admin.
     /// Repli sur le LRB si la version est inconnue.
     /// </summary>

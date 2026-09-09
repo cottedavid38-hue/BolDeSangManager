@@ -34,11 +34,19 @@ public static class VeaCalculator
     /// en Admin, jamais par un test sur le nom — une édition future ou un staff
     /// inventé par l'association se règle ainsi sans dev.
     /// </summary>
-    public static int Calculer(Team equipe)
+    /// <param name="bareme">
+    /// Barème des améliorations, qui sert à CALCULER la valeur de chaque joueur
+    /// (<see cref="ValeurJoueurCalculator"/>). Omis, il est résolu depuis la
+    /// version de règles de la ligue de l'équipe — ce qui exige que la requête
+    /// ait chargé <c>League.RulesVersion</c>.
+    /// </param>
+    public static int Calculer(Team equipe, BaremeAmelioration? bareme = null)
     {
+        bareme ??= ValeurJoueurCalculator.BaremeDe(equipe);
+
         var totalJoueurs = equipe.Joueurs
             .Where(j => !j.EstMort && !j.EstRetraite)
-            .Sum(j => ValeurComptee(j, equipe.TeamType));
+            .Sum(j => ValeurComptee(j, equipe.TeamType, bareme));
 
         var totalStaff = equipe.Staff
             .Where(s => s.LeagueStaffType is not null && s.LeagueStaffType.CompteDansVea)
@@ -56,24 +64,26 @@ public static class VeaCalculator
     /// est incluse normalement ». Un Snotling embauché 15 000 et amélioré à
     /// 35 000 compte donc 20 000, pas 0.
     /// </summary>
-    private static int ValeurComptee(TeamPlayer joueur, TeamType? teamType)
+    private static int ValeurComptee(TeamPlayer joueur, TeamType? teamType, BaremeAmelioration bareme)
     {
+        var valeur = ValeurJoueurCalculator.Calculer(joueur, bareme);
+
         var poste = joueur.PlayerPosition;
-        if (poste is null || teamType is null) return joueur.ValeurActuelle;
+        if (poste is null || teamType is null) return valeur;
 
         var motsClesExoneres = MotsClesExoneres(teamType);
-        if (motsClesExoneres.Count == 0) return joueur.ValeurActuelle;
+        if (motsClesExoneres.Count == 0) return valeur;
 
         var motsClesDuPoste = SpecialRuleCodes.DecouperOptions(poste.MotsCles);
         var estExonere = motsClesDuPoste.Any(m =>
             motsClesExoneres.Contains(m, StringComparer.OrdinalIgnoreCase));
 
-        if (!estExonere) return joueur.ValeurActuelle;
+        if (!estExonere) return valeur;
 
         // Jamais de contribution négative : un joueur dont la valeur est
         // inférieure à son coût d'embauche compte 0, pas un montant négatif
         // qui viendrait amputer la valeur des coéquipiers.
-        return Math.Max(0, joueur.ValeurActuelle - poste.Cout);
+        return Math.Max(0, valeur - poste.Cout);
     }
 
     /// <summary>

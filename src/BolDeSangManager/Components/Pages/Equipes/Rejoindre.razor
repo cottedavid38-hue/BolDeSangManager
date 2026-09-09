@@ -376,7 +376,10 @@ else
                 {
                     PositionId = j.PlayerPositionId,
                     PositionNom = j.PlayerPosition?.Nom ?? "",
-                    Cout = j.PlayerPosition?.Cout ?? j.ValeurActuelle,
+                    // Coût d'EMBAUCHE du poste, pas la valeur du joueur : cet
+                    // écran refond le roster à partir du budget de départ.
+                    Cout = j.PlayerPosition?.Cout
+                           ?? ValeurJoueurCalculator.Calculer(j, ValeurJoueurCalculator.BaremeDe(equipe)),
                     Nom = j.Nom,
                     Numero = j.Numero
                 });

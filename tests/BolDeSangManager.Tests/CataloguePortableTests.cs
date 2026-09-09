@@ -356,7 +356,7 @@ public class CataloguePortableTests
         var equipe = new Team { Nom = "Les Bretteurs", TeamType = tt };
         equipe.Joueurs.Add(new TeamPlayer
         {
-            Nom = "Marcus", Numero = 1, PlayerPosition = poste, ValeurActuelle = 50_000
+            Nom = "Marcus", Numero = 1, PlayerPosition = poste
         });
         return equipe;
     }
