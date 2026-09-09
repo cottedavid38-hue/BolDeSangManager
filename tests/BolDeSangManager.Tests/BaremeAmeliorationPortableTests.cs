@@ -250,7 +250,7 @@ public class BaremeAmeliorationPortableTests : IDisposable
         await using (var db = _factory.CreateContext())
         {
             var svc = new DataEditService(db, NullLogger<DataEditService>.Instance);
-            await svc.ModifierBaremeXpAsync(versionId, new BaremePsp { ParTouchdown = 9 });
+            await svc.ModifierBaremePspAsync(versionId, new BaremePsp { ParTouchdown = 9 });
             await svc.ModifierBaremePointsAsync(versionId, new BaremePoints { Victoire = 7 });
             await svc.RenommerVersionAsync(versionId, "Saison 3 bis");
         }

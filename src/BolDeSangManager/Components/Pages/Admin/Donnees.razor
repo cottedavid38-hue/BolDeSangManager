@@ -635,9 +635,6 @@
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                        title="Renommer cette version"
                                        OnClick="@(() => RenommerVersion(context))" />
-                        <MudIconButton Icon="@Icons.Material.Filled.MilitaryTech" Size="Size.Small"
-                                       title="Modifier le barème de PSP de cette version"
-                                       OnClick="@(() => EditerBareme(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small"
                                        title="Exporter cette version"
                                        OnClick="@(() => ExporterVersion(context.Id))" />
@@ -647,6 +644,11 @@
                     </MudTd>
                 </RowTemplate>
             </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Barèmes">
+            <BaremesVersionPanel Version="@_versionSelectionnee"
+                                 OnEnregistre="ChargerVersionsAsync" />
         </MudTabPanel>
     </MudTabs>
 </MudContainer>
@@ -812,15 +814,14 @@
 
     void OnCategorieChanged(int? c) => _categorieFiltre = c;
 
-    async Task EditerBareme(RulesVersion version)
-    {
-        var parameters = new DialogParameters<EditionBaremeDialog> { { x => x.Version, version } };
-        var dialog = await DialogService.ShowAsync<EditionBaremeDialog>(
-            "Barèmes de la version", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-            await ChargerVersionsAsync();
-    }
+    // ── Barèmes de la version ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Version affichée par l'onglet « Barèmes ». Elle suit le sélecteur du
+    /// haut de page, comme tous les autres onglets.
+    /// </summary>
+    RulesVersion? _versionSelectionnee =>
+        _versions.FirstOrDefault(v => v.Id == _selectedVersionId);
 
     // ── Règles spéciales ────────────────────────────────────────────────────
 

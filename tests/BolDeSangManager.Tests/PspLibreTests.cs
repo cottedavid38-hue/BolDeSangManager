@@ -170,13 +170,13 @@ public class XpLibreTests : IDisposable
     }
 
     [Fact]
-    public async Task ModifierBaremeXp_EnregistreSurLaVersionDeRegles()
+    public async Task ModifierBaremePsp_EnregistreSurLaVersionDeRegles()
     {
         using var db = _factory.CreateContext();
         var (_, version) = await DataSeeder.SeedGameAsync(db);
 
         var svc = new DataEditService(db, NullLogger<DataEditService>.Instance);
-        await svc.ModifierBaremeXpAsync(version.Id, new BaremePsp
+        await svc.ModifierBaremePspAsync(version.Id, new BaremePsp
         {
             ParTouchdown = 8, ParPasse = 0, ParInterception = 3, ParElimination = 1, BonusMvp = 6
         });

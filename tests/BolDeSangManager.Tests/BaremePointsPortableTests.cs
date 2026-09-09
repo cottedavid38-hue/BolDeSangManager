@@ -359,7 +359,7 @@ public class BaremePointsPortableTests : IDisposable
     // ── Édition admin de la version ───────────────────────────────────────────
 
     [Fact]
-    public async Task ModifierBaremePointsDeVersion_NeTouchePasAuBaremeXp()
+    public async Task ModifierBaremePointsDeVersion_NeTouchePasAuBaremePsp()
     {
         // Les deux barèmes vivent sur la même entité et sont édités par la même
         // modale : un champ oublié dans la copie de travail repartirait à son

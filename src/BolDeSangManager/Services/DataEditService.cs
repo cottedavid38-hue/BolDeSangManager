@@ -1304,7 +1304,7 @@ public class DataEditService(ApplicationDbContext db, ILogger<DataEditService> l
     /// Modifie le barème d'XP de référence d'une version de règles (R6).
     /// Les ligues déjà créées conservent le barème qu'elles ont enregistré.
     /// </summary>
-    public async Task ModifierBaremeXpAsync(int versionId, BaremePsp bareme)
+    public async Task ModifierBaremePspAsync(int versionId, BaremePsp bareme)
     {
         var version = await db.RulesVersions.FirstOrDefaultAsync(v => v.Id == versionId)
             ?? throw new InvalidOperationException("Version de règles introuvable");

@@ -1,0 +1,364 @@
+@using BolDeSangManager.Data.Models
+@using BolDeSangManager.Services
+@inject DataEditService DataEditService
+@inject ISnackbar Snackbar
+
+@* Panneau d'édition des barèmes d'une version de règles.
+   ⚠️ Ce n'est PAS une modale : il vit dans l'onglet « Barèmes » de
+   /admin/donnees et suit la version choisie dans le sélecteur du haut,
+   comme tous les autres onglets de la page. *@
+
+<style>
+    /* Le tableau des 6 rangs doit rester lisible sur téléphone : colonnes
+       serrées, en-têtes abrégés, champs numériques sans marge parasite. */
+    .bareme-psp th, .bareme-psp td { padding: 2px 4px !important; text-align: center; }
+    .bareme-psp th { font-size: .72rem; line-height: 1.1; white-space: normal; }
+    .bareme-psp td:first-child, .bareme-psp th:first-child { width: 12%; }
+    .bareme-psp .mud-input-control { margin-top: 0 !important; }
+    .bareme-psp input { text-align: center; }
+</style>
+
+@if (Version is null)
+{
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Choisissez une version de règles pour éditer ses barèmes.
+    </MudText>
+}
+else
+{
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.subtitle1"><b>@Version.Nom</b></MudText>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Enregistrer" Disabled="@_enCours">
+            @(_enCours ? "Enregistrement…" : "Enregistrer")
+        </MudButton>
+    </MudStack>
+
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+        Les ligues <b>déjà créées</b> gardent le barème qu'elles ont enregistré :
+        modifier cette version ne change rien à leurs matchs.
+    </MudAlert>
+
+    <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Points de star player</b></MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+        Valeurs de référence de cette version : une nouvelle ligue les reprend
+        à sa création et peut ensuite les ajuster pour son propre format.
+    </MudText>
+
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_td" Label="Touchdown"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_passe" Label="Passe complétée"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_interception" Label="Interception"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_elimination" Label="Élimination"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_mvp" Label="@($"Bonus {DisplayHelpers.LabelMvp}")"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_pspDeviation" Label="Déviation"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_pspAgression" Label="Agression"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="99" />
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Points de classement</b></MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+        Valeurs de départ des nouvelles ligues. Les paliers par nombre de tours,
+        eux, se règlent ligue par ligue : ils relèvent du format, pas des règles.
+    </MudText>
+
+    <MudGrid Spacing="2">
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptVictoire" Label="Victoire"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptNul" Label="Nul"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptDefaite" Label="Défaite"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptTd" Label="Bonus touchdown"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptElim" Label="Bonus élimination"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptInt" Label="Bonus interception"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptPasse" Label="Bonus passe"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptDev" Label="Bonus déviation"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudNumericField T="int" @bind-Value="_ptAgr" Label="Bonus agression"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Améliorations de joueur</b></MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+        Hausse de valeur en po. S'applique <b>immédiatement</b>, y compris aux
+        améliorations déjà prises : la valeur d'un joueur est recalculée.
+    </MudText>
+
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hPrincipale" Label="Compétence principale"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hSecondaire" Label="Compétence secondaire"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hElite" Label="Supplément Élite"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hArmure" Label="+1 Armure"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hMouvement" Label="+1 Mouvement"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hCapacitePasse" Label="+1 Capacité de passe"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hAgilite" Label="+1 Agilité"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudNumericField T="int" @bind-Value="_hForce" Label="+1 Force"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Step="5000" />
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1"><b>Coût en PSP par rang</b></MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2 d-block">
+        Valeurs <b>proposées</b> à l'après-match ; le coach peut les corriger.
+    </MudText>
+
+    <MudSimpleTable Dense="true" Striped="true" Class="bareme-psp">
+        <thead>
+            <tr>
+                <th>Rang</th>
+                <th title="Compétence principale tirée au hasard">Princ. aléa</th>
+                <th title="Compétence principale choisie">Princ. choix</th>
+                <th title="Compétence secondaire (hasard ou choix)">Second.</th>
+                <th title="Amélioration de caractéristique">Carac.</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in _paliers)
+            {
+                <tr>
+                    <td title="@NomRang(p.Rang)">@p.Rang</td>
+                    <td>
+                        <MudNumericField T="int" @bind-Value="p.CoutAleaPrincipale" HideSpinButtons="true"
+                                         Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                    </td>
+                    <td>
+                        <MudNumericField T="int" @bind-Value="p.CoutChoixPrincipale" HideSpinButtons="true"
+                                         Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                    </td>
+                    <td>
+                        <MudNumericField T="int" @bind-Value="p.CoutSecondaire" HideSpinButtons="true"
+                                         Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                    </td>
+                    <td>
+                        <MudNumericField T="int" @bind-Value="p.CoutCaracteristique" HideSpinButtons="true"
+                                         Variant="Variant.Text" Margin="Margin.Dense" Min="0" Max="99" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Enregistrer" Disabled="@_enCours">
+            @(_enCours ? "Enregistrement…" : "Enregistrer")
+        </MudButton>
+    </MudStack>
+}
+
+@code {
+    /// <summary>Version de règles éditée — celle du sélecteur de la page.</summary>
+    [Parameter] public RulesVersion? Version { get; set; }
+
+    /// <summary>Prévient la page pour qu'elle rafraîchisse son tableau des versions.</summary>
+    [Parameter] public EventCallback OnEnregistre { get; set; }
+
+    int _td, _passe, _interception, _elimination, _mvp, _pspDeviation, _pspAgression;
+    int _ptVictoire, _ptNul, _ptDefaite, _ptTd, _ptElim, _ptInt, _ptPasse, _ptDev, _ptAgr;
+    int _hPrincipale, _hSecondaire, _hArmure, _hMouvement, _hCapacitePasse, _hAgilite, _hForce, _hElite;
+    List<PalierAmeliorationPsp> _paliers = [];
+    bool _enCours;
+
+    // Version réellement chargée dans les champs. Sans ce garde-fou, changer de
+    // version dans le sélecteur du haut laisserait le formulaire sur les valeurs
+    // de la précédente — et un « Enregistrer » les écrirait sur la nouvelle.
+    int _versionChargee = -1;
+
+    static string NomRang(int rang) => rang switch
+    {
+        1 => "Expérimenté", 2 => "Vétéran", 3 => "Future Star",
+        4 => "Star", 5 => "Superstar", 6 => "Légende", _ => $"Rang {rang}"
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Version is null || Version.Id == _versionChargee) return;
+        await ChargerAsync();
+    }
+
+    async Task ChargerAsync()
+    {
+        if (Version is null) return;
+
+        _td           = Version.PspParTouchdown;
+        _passe        = Version.PspParPasse;
+        _interception = Version.PspParInterception;
+        _elimination  = Version.PspParElimination;
+        _mvp          = Version.PspBonusMvp;
+        _pspDeviation = Version.PspParDeviation;
+        _pspAgression = Version.PspParAgression;
+
+        // ⚠️ Une copie de travail construite champ par champ oublie tout champ
+        // neuf, qui repart alors à son défaut C# et écrase la valeur en base à
+        // la simple ouverture de l'écran. D'où la reprise exhaustive ici.
+        var pts = BaremePoints.DeVersion(Version);
+        _ptVictoire = pts.Victoire;
+        _ptNul      = pts.Nul;
+        _ptDefaite  = pts.Defaite;
+        _ptTd       = pts.ParTouchdown;
+        _ptElim     = pts.ParElimination;
+        _ptInt      = pts.ParInterception;
+        _ptPasse    = pts.ParPasse;
+        _ptDev      = pts.ParDeviation;
+        _ptAgr      = pts.ParAgression;
+
+        // Le barème d'amélioration est relu depuis le service : la RulesVersion
+        // reçue en paramètre vient d'une requête qui ne charge PAS ses paliers.
+        var amel = await DataEditService.GetBaremeAmeliorationAsync(Version.Id);
+        _hPrincipale    = amel.HaussePrincipale;
+        _hSecondaire    = amel.HausseSecondaire;
+        _hArmure        = amel.HausseArmure;
+        _hMouvement     = amel.HausseMouvement;
+        _hCapacitePasse = amel.HausseCapacitePasse;
+        _hAgilite       = amel.HausseAgilite;
+        _hForce         = amel.HausseForce;
+        _hElite         = amel.SurcoutElite;
+
+        // Copie de travail : on n'édite jamais les entités suivies par EF tant
+        // que l'utilisateur n'a pas validé.
+        _paliers = amel.Paliers
+            .OrderBy(p => p.Rang)
+            .Select(p => new PalierAmeliorationPsp
+            {
+                Rang                = p.Rang,
+                CoutAleaPrincipale  = p.CoutAleaPrincipale,
+                CoutChoixPrincipale = p.CoutChoixPrincipale,
+                CoutSecondaire      = p.CoutSecondaire,
+                CoutCaracteristique = p.CoutCaracteristique
+            })
+            .ToList();
+
+        _versionChargee = Version.Id;
+    }
+
+    async Task Enregistrer()
+    {
+        if (Version is null) return;
+
+        _enCours = true;
+        try
+        {
+            await DataEditService.ModifierBaremePspAsync(Version.Id, new BaremePsp
+            {
+                ParTouchdown    = _td,
+                ParPasse        = _passe,
+                ParInterception = _interception,
+                ParElimination  = _elimination,
+                BonusMvp        = _mvp,
+                ParDeviation    = _pspDeviation,
+                ParAgression    = _pspAgression
+            });
+
+            await DataEditService.ModifierBaremePointsAsync(Version.Id, new BaremePoints
+            {
+                Victoire        = _ptVictoire,
+                Nul             = _ptNul,
+                Defaite         = _ptDefaite,
+                ParTouchdown    = _ptTd,
+                ParElimination  = _ptElim,
+                ParInterception = _ptInt,
+                ParPasse        = _ptPasse,
+                ParDeviation    = _ptDev,
+                ParAgression    = _ptAgr
+            });
+
+            await DataEditService.ModifierBaremeAmeliorationAsync(Version.Id, new BaremeAmelioration
+            {
+                HaussePrincipale    = _hPrincipale,
+                HausseSecondaire    = _hSecondaire,
+                HausseArmure        = _hArmure,
+                HausseMouvement     = _hMouvement,
+                HausseCapacitePasse = _hCapacitePasse,
+                HausseAgilite       = _hAgilite,
+                HausseForce         = _hForce,
+                SurcoutElite        = _hElite,
+                Paliers             = _paliers
+            });
+
+            Snackbar.Add($"Barèmes de « {Version.Nom} » mis à jour.", Severity.Success);
+
+            // La page recharge ses versions : le résumé du tableau doit suivre.
+            // ⚠️ Elle nous renvoie une NOUVELLE instance de RulesVersion ; sans
+            // remise à zéro, OnParametersSetAsync la verrait comme « déjà
+            // chargée » (même Id) et garderait la copie de travail précédente.
+            _versionChargee = -1;
+            await OnEnregistre.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally { _enCours = false; }
+    }
+}
