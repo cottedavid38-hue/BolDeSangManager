@@ -22,6 +22,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Division> Divisions => Set<Division>();
     public DbSet<EcheanceRonde> EcheancesRondes => Set<EcheanceRonde>();
     public DbSet<PalierPointsLigue> PaliersPointsLigue => Set<PalierPointsLigue>();
+    public DbSet<PalierAmeliorationPsp> PaliersAmelioration => Set<PalierAmeliorationPsp>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamPlayer> TeamPlayers => Set<TeamPlayer>();
     public DbSet<TeamPlayerSkill> TeamPlayerSkills => Set<TeamPlayerSkill>();
@@ -167,6 +168,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(p => p.League)
             .WithMany(l => l.PaliersPoints)
             .HasForeignKey(p => p.LeagueId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // PalierAmeliorationPsp — un seul palier par (version, rang).
+        // Cascade : un palier n'a aucun sens hors de sa version de règles.
+        builder.Entity<PalierAmeliorationPsp>()
+            .HasIndex(p => new { p.RulesVersionId, p.Rang })
+            .IsUnique();
+
+        builder.Entity<PalierAmeliorationPsp>()
+            .HasOne(p => p.RulesVersion)
+            .WithMany(v => v.PaliersAmelioration)
+            .HasForeignKey(p => p.RulesVersionId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Team — FK vers ApplicationUser (Coach)

@@ -102,4 +102,44 @@ public class RulesVersion
 
     /// <summary>Définitions de staff livrées avec cette version de règles.</summary>
     public ICollection<StaffDefinition> StaffTypes { get; set; } = [];
+
+    // ── Barème des améliorations de joueur (LRB « Tableau de Hausse de Valeur ») ──
+    //
+    // ⚠️ Le LRB ne distingue PAS une compétence tirée au hasard d'une compétence
+    // choisie pour la hausse de VALEUR : cette différence n'existe que sur le
+    // coût en PSP (voir PaliersAmelioration). L'ancien code les confondait.
+
+    /// <summary>Hausse pour une compétence de la catégorie principale.</summary>
+    public int HaussePrincipale { get; set; } = 20_000;
+
+    /// <summary>Hausse pour une compétence de la catégorie secondaire.</summary>
+    public int HausseSecondaire { get; set; } = 40_000;
+
+    /// <summary>Hausse pour +1 en Armure.</summary>
+    public int HausseArmure { get; set; } = 10_000;
+
+    /// <summary>Hausse pour +1 en Mouvement.</summary>
+    public int HausseMouvement { get; set; } = 20_000;
+
+    /// <summary>Hausse pour +1 en Capacité de Passe.</summary>
+    public int HausseCapacitePasse { get; set; } = 20_000;
+
+    /// <summary>Hausse pour +1 en Agilité.</summary>
+    public int HausseAgilite { get; set; } = 30_000;
+
+    /// <summary>Hausse pour +1 en Force.</summary>
+    public int HausseForce { get; set; } = 60_000;
+
+    /// <summary>
+    /// Supplément appliqué à une compétence marquée <c>EstElite</c>
+    /// (LRB : « augmentez sa valeur de 10 000 pièces d'or supplémentaires »).
+    /// Ne s'applique jamais à une amélioration de caractéristique.
+    /// </summary>
+    public int SurcoutElite { get; set; } = 10_000;
+
+    /// <summary>
+    /// Coût en PSP par rang d'amélioration (LRB « Tableau des Améliorations »).
+    /// Vide = repli sur le tableau LRB par défaut.
+    /// </summary>
+    public ICollection<PalierAmeliorationPsp> PaliersAmelioration { get; set; } = [];
 }
