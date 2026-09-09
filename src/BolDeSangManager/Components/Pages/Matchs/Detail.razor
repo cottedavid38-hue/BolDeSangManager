@@ -291,6 +291,19 @@ else
         @* « ✓ Validée » retiré avec la validation commissaire : le drapeau
            ValideParCommissaire reste en base (jamais de suppression de colonne)
            et dans les exports, mais il n'est plus jamais mis à vrai. *@
+        @* Trace d'une confirmation d'autorité : sans elle, un match confirmé
+           par le commissaire est indiscernable d'un match confirmé par
+           l'adversaire, et le coach croit que celui-ci a validé le résultat. *@
+        @if (_match.Feuille.ConfirmeeParCommissaireLe is DateTime confirmeeLe)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-3" Icon="@Icons.Material.Filled.Shield" Dense="true">
+                Feuille confirmée par <b>@_match.Feuille.ConfirmeeParCommissaire</b>,
+                commissaire de la ligue, le
+                @confirmeeLe.ToLocalTime().ToString("dd/MM/yyyy à HH'h'mm")
+                — sans attendre la confirmation de l'adversaire.
+            </MudAlert>
+        }
+
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3 d-block">
             Saisie le @_match.Feuille.SaisiLe.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
         </MudText>

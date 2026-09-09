@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
 @inject LeagueNotificationService Notifications
+@inject BolDeSangManager.Services.IAuthorizationService Auth
 @implements IDisposable
 
 <PageTitle>Feuille de match — BolDeSang Manager</PageTitle>
@@ -38,11 +39,24 @@ else
     {
         @if (_match.Statut == MatchStatus.FeuilleEnSaisie)
         {
-            @if (_match.Feuille.SaisiParId == _userId)
+            @if (!_estCoach)
+            {
+                <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Shield" Class="mb-4">
+                    <b>Vue commissaire.</b> Ce match n'est pas le vôtre. La feuille a été
+                    saisie le @_match.Feuille.SaisiLe.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    et attend la confirmation de l'adversaire. Vous pouvez confirmer à sa
+                    place pour débloquer le match : les deux coaches en seront informés.
+                </MudAlert>
+            }
+            else if (_match.Feuille.SaisiParId == _userId)
             {
                 <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.HourglassEmpty" Class="mb-4">
                     Feuille enregistrée le @_match.Feuille.SaisiLe.ToLocalTime().ToString("dd/MM/yyyy HH:mm").
                     <b> En attente de confirmation de l'adversaire.</b>
+                    @if (_estCommissaire)
+                    {
+                        <text> En tant que commissaire, vous pouvez confirmer vous-même.</text>
+                    }
                 </MudAlert>
             }
             else
@@ -126,7 +140,8 @@ else
             </MudTable>
         }
 
-        @if (_match.Statut == MatchStatus.FeuilleEnSaisie && _match.Feuille.SaisiParId != _userId)
+        @if (_match.Statut == MatchStatus.FeuilleEnSaisie
+             && (_match.Feuille.SaisiParId != _userId || _estCommissaire))
         {
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-4">
                 <MudButton Href="/matchs" Variant="Variant.Text">Retour aux matchs</MudButton>
@@ -134,7 +149,11 @@ else
                           StartIcon="@Icons.Material.Filled.CheckCircle"
                           Disabled="@_confirming"
                           OnClick="Confirmer">
-                    @(_confirming ? "Confirmation..." : "Confirmer le match")
+                    @(_confirming
+                        ? "Confirmation..."
+                        : _estCoach && _match.Feuille.SaisiParId != _userId
+                            ? "Confirmer le match"
+                            : "Confirmer en tant que commissaire")
                 </MudButton>
             </MudStack>
         }
@@ -357,6 +376,15 @@ else
     bool _saving;
     bool _confirming;
     string _userId = "";
+    /// <summary>Je suis coach d'une des deux équipes de ce match.</summary>
+    bool _estCoach;
+
+    /// <summary>
+    /// Je peux gérer la ligue de ce match (Admin, GrandCommissaire ou
+    /// commissaire de CETTE ligue). ⚠️ Jamais un IsInRole("Commissaire") : ce
+    /// rôle n'existe plus, le test renverrait toujours false.
+    /// </summary>
+    bool _estCommissaire;
     HashSet<int> _blessuresOuvertes = [];
 
     int _tdDomicile    => _recordsDomicile.Sum(r => r.Touchdowns);
@@ -547,10 +575,27 @@ else
         _ligueAvecPaliers = _match.Division?.League?.PaliersPoints.Count > 0;
 
         var estCoach = _match.EquipeDomicile?.CoachId == _userId || _match.EquipeExterieur?.CoachId == _userId;
-        if (!estCoach)
+        _estCoach = estCoach;
+
+        // Un commissaire de la ligue accède à la feuille d'un match qui n'est
+        // pas le sien, pour pouvoir le débloquer. Le service revérifie le droit.
+        var ligueId = _match.Division?.LeagueId;
+        _estCommissaire = ligueId is int lid && await Auth.PeutGererLigueAsync(_userId, lid);
+
+        if (!estCoach && !_estCommissaire)
         {
             Snackbar.Add("Vous n'êtes pas coach de ce match.", Severity.Error);
             Nav.NavigateTo("/");
+            return;
+        }
+
+        // Un commissaire non-coach ne SAISIT pas une feuille absente : il n'a
+        // pas joué le match. Il ne vient ici que pour confirmer une saisie
+        // existante ; sans feuille, il n'y a rien à faire sur cet écran.
+        if (!estCoach && _match.Feuille is null)
+        {
+            Snackbar.Add("La feuille de ce match n'a pas encore été saisie par les coaches.", Severity.Info);
+            Nav.NavigateTo($"/matchs/{Id}/detail");
             return;
         }
 
@@ -585,6 +630,13 @@ else
     private async Task SurMatchModifieAsync(int matchId)
     {
         if (matchId != Id) return;
+
+        // Cet avertissement ne concerne QUE le coach en train de remplir sa
+        // propre saisie : c'est lui qui risque de perdre son travail. Un
+        // commissaire non-coach qui vient confirmer voyait « l'adversaire vient
+        // de saisir » — un message faux (il n'a pas d'adversaire) déclenché par
+        // sa propre confirmation.
+        if (!_estCoach) return;
 
         // Rien à signaler tant qu'aucune feuille n'existe côté base.
         var frais = await MatchService.GetMatchFraisAsync(Id);
@@ -662,9 +714,21 @@ else
         _confirming = true;
         try
         {
-            await MatchService.ConfirmerFeuilleCoachAsync(_match.Id, _userId);
-            Snackbar.Add("Match confirmé — passez à votre après-match !", Severity.Success);
-            Nav.NavigateTo($"/matchs/{_match.Id}/apres-match");
+            await MatchService.ConfirmerFeuilleCoachAsync(
+                _match.Id, _userId, _estCommissaire);
+
+            if (_estCoach)
+            {
+                Snackbar.Add("Match confirmé — passez à votre après-match !", Severity.Success);
+                Nav.NavigateTo($"/matchs/{_match.Id}/apres-match");
+            }
+            else
+            {
+                // Un commissaire non-coach n'a pas d'après-match à faire : l'y
+                // envoyer lui montrerait un écran vide et sans action.
+                Snackbar.Add("Match confirmé — les deux coaches ont été prévenus.", Severity.Success);
+                Nav.NavigateTo($"/matchs/{_match.Id}/detail");
+            }
         }
         catch (Exception ex)
         {

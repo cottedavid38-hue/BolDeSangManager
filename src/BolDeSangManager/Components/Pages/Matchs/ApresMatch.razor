@@ -47,6 +47,20 @@ else if (DejaValide())
 }
 else
 {
+@if (_match?.Feuille?.ConfirmeeParCommissaireLe is DateTime confirmeeParComm)
+        {
+            @* Le coach n'a rien confirmé : sans ce bandeau, il découvre un
+               après-match ouvert sans savoir pourquoi, et peut croire que
+               l'adversaire a validé un score qu'il n'a jamais vu. *@
+            <MudAlert Severity="Severity.Info" Class="mb-4" Icon="@Icons.Material.Filled.Shield">
+                <b>Ce match a été confirmé par @_match.Feuille.ConfirmeeParCommissaire</b>,
+                commissaire de la ligue, le
+                @confirmeeParComm.ToLocalTime().ToString("dd/MM/yyyy à HH'h'mm"),
+                sans attendre la confirmation de l'adversaire. Le résultat est définitif —
+                contactez le commissaire s'il vous semble incorrect.
+            </MudAlert>
+        }
+
 @if (_match?.Feuille?.CorrigeeLe is DateTime corrigeeLe)
         {
             @* Le coach arrive souvent par la liste des matchs, sans avoir lu son

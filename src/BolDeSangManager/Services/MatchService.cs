@@ -231,7 +231,25 @@ public class MatchService(
         return feuille;
     }
 
-    public async Task ConfirmerFeuilleCoachAsync(int matchId, string coachId)
+    /// <summary>
+    /// Confirme la saisie d'une feuille et fait passer le match à l'après-match.
+    ///
+    /// Deux appelants distincts :
+    /// - le coach ADVERSE (cas normal, circuit du mail « Feuille à confirmer ») ;
+    /// - un COMMISSAIRE de la ligue (<paramref name="estCommissaire"/> = true),
+    ///   qui débloque un match dont l'adversaire ne confirme pas. Il n'a pas
+    ///   besoin d'être coach du match, et peut même confirmer sa propre saisie
+    ///   s'il est coach : décision produit assumée, il engage sa responsabilité.
+    ///   Sa confirmation laisse une trace sur la feuille et prévient les deux
+    ///   coaches par e-mail — sans quoi elle serait indiscernable d'une
+    ///   confirmation normale par l'adversaire.
+    ///
+    /// ⚠️ <paramref name="estCommissaire"/> vient de l'écran, donc du client :
+    /// c'est l'appelant Razor qui l'établit via PeutGererLigueAsync, comme pour
+    /// ProgrammerMatchAsync. Ne pas le confondre avec une autorisation.
+    /// </summary>
+    public async Task ConfirmerFeuilleCoachAsync(int matchId, string coachId,
+        bool estCommissaire = false)
     {
         var match = await db.Matches
             .Include(m => m.EquipeDomicile)
@@ -248,17 +266,48 @@ public class MatchService(
 
         bool estDomicile = match.EquipeDomicile?.CoachId == coachId;
         bool estExterieur = match.EquipeExterieur?.CoachId == coachId;
-        if (!estDomicile && !estExterieur)
+        if (!estDomicile && !estExterieur && !estCommissaire)
             throw new InvalidOperationException("Vous n'êtes pas coach de ce match.");
 
-        if (feuille.SaisiParId == coachId)
+        if (feuille.SaisiParId == coachId && !estCommissaire)
             throw new InvalidOperationException("Vous ne pouvez pas confirmer votre propre saisie — attendez que l'adversaire confirme.");
+
+        // La trace n'est posée que pour une confirmation d'autorité : un
+        // commissaire qui confirme le match d'un AUTRE, ou sa propre saisie.
+        // Un commissaire qui confirme en tant que simple adversaire fait ce que
+        // n'importe quel coach ferait — rien de spécial à signaler.
+        var confirmationDAutorite = estCommissaire
+            && (feuille.SaisiParId == coachId || (!estDomicile && !estExterieur));
+
+        if (confirmationDAutorite)
+        {
+            // Le pseudo est lu EN BASE, pas reçu de l'écran : User.Identity.Name
+            // vaut l'adresse e-mail, qu'on n'a pas à publier aux deux coaches.
+            var auteur = await db.Users
+                .Where(u => u.Id == coachId)
+                .Select(u => u.PseudoCoach)
+                .FirstOrDefaultAsync();
+            feuille.ConfirmeeParCommissaire = string.IsNullOrWhiteSpace(auteur)
+                ? "un commissaire" : auteur;
+            feuille.ConfirmeeParCommissaireLe = DateTime.UtcNow;
+        }
 
         match.Statut = MatchStatus.ValidationCompetences;
         await db.SaveChangesAsync();
-        logger.LogInformation("Feuille du match id={MatchId} confirmée par coach id={CoachId}", matchId, coachId);
+        logger.LogInformation(
+            "Feuille du match id={MatchId} confirmée par id={CoachId} (commissaire={Commissaire})",
+            matchId, coachId, confirmationDAutorite);
 
-        await EnvoyerEmailApresMatchAsync(match, matchId, excludeCoachId: coachId);
+        // Confirmation d'autorité : les DEUX coaches sont prévenus, y compris
+        // celui qui a saisi — il n'a rien fait et doit pourtant passer à
+        // l'après-match. Sinon on garde le circuit normal (l'auteur de la
+        // confirmation sait déjà, on ne lui écrit pas).
+        if (confirmationDAutorite)
+            await EnvoyerEmailApresMatchAsync(match, matchId,
+                parCommissaire: feuille.ConfirmeeParCommissaire);
+        else
+            await EnvoyerEmailApresMatchAsync(match, matchId, excludeCoachId: coachId);
+
         await NotifierMatchAsync(matchId);
     }
 
@@ -348,7 +397,15 @@ public class MatchService(
         }
     }
 
-    private async Task EnvoyerEmailApresMatchAsync(Match match, int matchId, string? excludeCoachId = null)
+    /// <param name="parCommissaire">
+    /// Pseudo du commissaire quand la confirmation est d'autorité. Change le
+    /// texte du message : dire « confirmé par les deux coaches » à un coach qui
+    /// n'a rien confirmé est faux, et le mail générique passerait pour un
+    /// doublon de celui qu'il croit déjà avoir reçu (cf. la même erreur commise
+    /// sur la correction de feuille).
+    /// </param>
+    private async Task EnvoyerEmailApresMatchAsync(Match match, int matchId,
+        string? excludeCoachId = null, string? parCommissaire = null)
     {
         try
         {
@@ -364,15 +421,24 @@ public class MatchService(
                 .Where(id => id is not null && id != excludeCoachId).ToList();
             var coaches = await db.Users.Where(u => coachIds.Contains(u.Id)).ToListAsync();
 
+            var sujet = parCommissaire is null
+                ? $"Match confirmé — passez à l'après-match ({dom} vs {ext})"
+                : $"Match confirmé par le commissaire ({dom} vs {ext})";
+            var titre = parCommissaire is null
+                ? "Match confirmé — après-match disponible"
+                : "Match confirmé par le commissaire";
+            var corps = parCommissaire is null
+                ? $"Le match <b>{dom} {score} {ext}</b> a été confirmé par les deux coaches. Effectuez votre phase d'après-match : gains de compétences, recrutements, relances."
+                : $"La feuille du match <b>{dom} {score} {ext}</b> a été confirmée par <b>{parCommissaire}</b>, commissaire de la ligue, sans attendre la confirmation de l'adversaire. Le résultat est désormais définitif : effectuez votre phase d'après-match (gains de compétences, recrutements, relances).";
+
             foreach (var coach in coaches)
             {
                 if (coach.Email is null) continue;
                 await emailSender.EnvoyerNotificationMatchAsync(
-                    coach.Email,
-                    $"Match confirmé — passez à l'après-match ({dom} vs {ext})",
-                    "Match confirmé — après-match disponible",
-                    $"Le match <b>{dom} {score} {ext}</b> a été confirmé par les deux coaches. Effectuez votre phase d'après-match : gains de compétences, recrutements, relances.",
-                    lien, "Faire mon après-match");
+                    coach.Email, sujet, titre, corps, lien, "Faire mon après-match",
+                    footer: parCommissaire is null
+                        ? null
+                        : "Si le résultat vous semble incorrect, contactez le commissaire de la ligue.");
             }
         }
         catch (Exception ex)

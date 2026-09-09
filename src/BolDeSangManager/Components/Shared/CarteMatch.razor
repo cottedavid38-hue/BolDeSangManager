@@ -113,7 +113,10 @@
                     }
                 }
 
-                @if (SaisiePossible(Match.Statut))
+                @* Même logique que la confirmation : ne proposer la saisie qu'à
+                   qui peut effectivement la faire, c'est-à-dire un des deux
+                   coaches. Un tiers se faisait rediriger au clic. *@
+                @if (SaisiePossible(Match.Statut) && EstDeMesEquipes)
                 {
                     <div @onclick:stopPropagation="true">
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
@@ -123,15 +126,30 @@
                     </div>
                 }
 
-                @if (Match.Statut == MatchStatus.FeuilleEnSaisie)
+                @* Confirmation d'une saisie.
+                   ⚠️ Avant : le bouton s'affichait pour QUICONQUE n'avait pas
+                   saisi la feuille — donc un coach tiers voyait « Confirmer »
+                   sur un match qui n'était pas le sien, et se faisait éjecter
+                   au clic. On distingue maintenant trois cas :
+                   — je suis coach du match : « Confirmer » / « En attente » ;
+                   — je suis commissaire en vue commissaire : je peux confirmer
+                     à la place de l'adversaire pour débloquer le match ;
+                   — sinon : rien du tout. *@
+                @if (Match.Statut == MatchStatus.FeuilleEnSaisie
+                     && (EstDeMesEquipes || EstCommissaire))
                 {
-                    var doitConfirmer = Match.Feuille is not null && Match.Feuille.SaisiParId != UserId;
+                    var jaiSaisi = Match.Feuille is not null && Match.Feuille.SaisiParId == UserId;
+                    var doitConfirmer = Match.Feuille is not null && !jaiSaisi && EstDeMesEquipes;
+                    var confirmeCommissaire = Match.Feuille is not null && !doitConfirmer && EstCommissaire;
+                    var actionnable = doitConfirmer || confirmeCommissaire;
                     <div @onclick:stopPropagation="true">
                         <MudButton Size="Size.Small"
-                                   Variant="@(doitConfirmer ? Variant.Outlined : Variant.Text)"
-                                   Color="@(doitConfirmer ? Color.Warning : Color.Default)"
+                                   Variant="@(actionnable ? Variant.Outlined : Variant.Text)"
+                                   Color="@(actionnable ? Color.Warning : Color.Default)"
                                    Href="@($"/matchs/{Match.Id}/feuille")">
-                            @(doitConfirmer ? "Confirmer" : "En attente adversaire")
+                            @(doitConfirmer ? "Confirmer"
+                              : confirmeCommissaire ? "Confirmer (commissaire)"
+                              : "En attente adversaire")
                         </MudButton>
                     </div>
                 }
@@ -184,6 +202,14 @@
 
     /// <summary>Équipes du coach : sert au bouton d'après-match (domicile ou extérieur).</summary>
     [Parameter] public IReadOnlySet<int> MesEquipes { get; set; } = new HashSet<int>();
+
+    /// <summary>
+    /// Ce match est-il l'un des MIENS ? Sert à ne pas proposer « Confirmer » à
+    /// un coach tiers qui consulte l'onglet Matchs d'une ligue : le service le
+    /// refuserait, mais le bouton l'aurait laissé croire le contraire.
+    /// </summary>
+    bool EstDeMesEquipes =>
+        MesEquipes.Contains(Match.EquipeDomicileId) || MesEquipes.Contains(Match.EquipeExterieurId);
 
     /// <summary>Préfixer le nom de la ligue : vrai sur les écrans transverses.</summary>
     [Parameter] public bool AfficherLigue { get; set; }

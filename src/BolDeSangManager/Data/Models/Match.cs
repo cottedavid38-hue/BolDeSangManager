@@ -97,6 +97,21 @@ public class MatchSheet
     public int? ScoreAvantCorrectionDomicile { get; set; }
     public int? ScoreAvantCorrectionExterieur { get; set; }
 
+    /// <summary>
+    /// Pseudo du commissaire ayant confirmé la feuille À LA PLACE du coach
+    /// adverse (débloquage d'un match qui traîne). Null = confirmation normale
+    /// par l'adversaire, ou feuille pas encore confirmée.
+    ///
+    /// ⚠️ Volontairement un TEXTE et pas une FK vers ApplicationUser : une
+    /// cinquième FK en Restrict vers un compte obligerait à l'ajouter au
+    /// comptage de UserAccountService.EvaluerSuppressionAsync et à l'export
+    /// RGPD (voir CLAUDE.md). Ici on ne veut qu'une trace d'affichage.
+    /// </summary>
+    public string? ConfirmeeParCommissaire { get; set; }
+
+    /// <summary>Date UTC de la confirmation par un commissaire. Null = jamais.</summary>
+    public DateTime? ConfirmeeParCommissaireLe { get; set; }
+
     // Inducements pré-match (JSON simple: {"entrainement": 2, "potDeVin": 1})
     public string InducementsDomicile { get; set; } = "{}";
     public string InducementsExterieur { get; set; } = "{}";
