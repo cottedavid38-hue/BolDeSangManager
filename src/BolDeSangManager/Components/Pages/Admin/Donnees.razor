@@ -566,6 +566,11 @@
             </MudTable>
         </MudTabPanel>
 
+        <MudTabPanel Text="Barèmes">
+            <BaremesVersionPanel Version="@_versionSelectionnee"
+                                 OnEnregistre="ChargerVersionsAsync" />
+        </MudTabPanel>
+
         <MudTabPanel Text="Versions">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
                 <MudText Typo="Typo.subtitle1"><b>@_versions.Count version(s)</b></MudText>
@@ -644,11 +649,6 @@
                     </MudTd>
                 </RowTemplate>
             </MudTable>
-        </MudTabPanel>
-
-        <MudTabPanel Text="Barèmes">
-            <BaremesVersionPanel Version="@_versionSelectionnee"
-                                 OnEnregistre="ChargerVersionsAsync" />
         </MudTabPanel>
     </MudTabs>
 </MudContainer>
